@@ -16,7 +16,7 @@ const Login = () => {
         console.log('Password:', values.password);
     
         try {
-            const response = await fetch("/api/user_login/", { // this should be /api/user_login
+            const response = await fetch("https://pinesphere.pinesphere.co.in/api/user_login/", { // this should be /api/user_login
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

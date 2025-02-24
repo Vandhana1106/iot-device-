@@ -38,7 +38,7 @@ const AreaTable = () => {
   const [toDate, setToDate] = useState(""); // To Date state
 
   useEffect(() => {
-    fetch("/api/logs/")
+    fetch("https://pinesphere.pinesphere.co.in/api/logs/")
       .then((response) => response.json())
       .then((data) => {
         if (Array.isArray(data)) {
