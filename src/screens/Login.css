@@ -1,0 +1,80 @@
+/* Login.css */
+
+.login-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background:  url(/src/assets/images/newbg.avif);
+    /* <img class="image-item" src="img1.jpg" alt="img-1" /> */
+    background-size: cover;
+    background-position: center;
+  }
+  
+  .login-form {
+    width: 100%;
+    max-width: 400px;
+    padding: 20px;
+    background-color:#37609a;
+    border-radius: 8px;
+    box-shadow: 0px 0px 10px 0px rgba(0, 0, 0, 0.3);
+    transition: transform 0.3s ease-in-out; /* Added transition for hovering effect */
+  }
+  
+  .login-form:hover {
+    transform: translateY(-5px); /* Move the form slightly upwards on hover */
+  }
+  
+  .login-form form {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .login-form form input[type="text"],
+  .login-form form input[type="password"] {
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    transition: border-color 0.3s ease-in-out; /* Added transition for border color change */
+  }
+  
+  .login-form form input[type="text"]:focus,
+  .login-form form input[type="password"]:focus {
+    border-color: #007bff; /* Change border color on focus */
+  }
+  
+  .login-form form input[type="submit"] {
+    padding: 10px 0;
+    background-color: #007bff; /* Blue submit button */
+    color: #fff; /* White text color */
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease-in-out; /* Added transition for background color change */
+  }
+  
+  .login-form form input[type="submit"]:hover {
+    background-color: #0056b3; /* Darker blue on hover */
+  }
+  
+  .error-message {
+    color: red;
+    text-align: center;
+  }
+  .login-footer {
+    background-color: #f0f0f0;
+    padding: 20px;
+    text-align: center;
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    color: #666;
+    font-size: 14px;
+  }
+  .login-footer {
+    height: 5px; /* Adjust the height to your preference */
+  }
+  
+  
