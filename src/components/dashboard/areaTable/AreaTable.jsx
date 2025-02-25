@@ -3,6 +3,7 @@ import { FaFilter, FaRedo } from "react-icons/fa"; // Add FaRedo import
 import "./AreaTable.scss";
 
 const TABLE_HEADS = [
+  { label: "Serial Number", key: "serial_number" }, // Add Serial Number
   { label: "Machine ID", key: "MACHINE_ID" },
   { label: "Line Number", key: "LINE_NUMB" },
   { label: "Operator ID", key: "OPERATOR_ID" },
@@ -64,36 +65,36 @@ const AreaTable = () => {
       )
     );
   
-    // Apply date filter
+    // Apply date filter based on the "Date" field
     if (fromDate || toDate) {
       filtered = filtered.filter((item) => {
-        const itemDate = new Date(item.created_at);
-        
-        // For comparing dates only (not time)
+        const itemDate = new Date(item.DATE);
         const itemDateOnly = new Date(itemDate.getFullYear(), itemDate.getMonth(), itemDate.getDate());
-        
+  
         let isAfterFromDate = true;
         let isBeforeToDate = true;
-        
+  
+        // If 'fromDate' exists, check if the item date is greater than or equal to it
         if (fromDate) {
           const fromDateTime = new Date(fromDate);
-          isAfterFromDate = itemDateOnly >= fromDateTime;
+          const fromDateOnly = new Date(fromDateTime.getFullYear(), fromDateTime.getMonth(), fromDateTime.getDate());
+          isAfterFromDate = itemDateOnly >= fromDateOnly;
         }
-        
+  
+        // If 'toDate' exists, check if the item date is less than or equal to it
         if (toDate) {
           const toDateTime = new Date(toDate);
-          // Add 1 day to include the end date fully
-          toDateTime.setDate(toDateTime.getDate() + 1);
-          isBeforeToDate = itemDateOnly < toDateTime;
+          const toDateOnly = new Date(toDateTime.getFullYear(), toDateTime.getMonth(), toDateTime.getDate());
+          isBeforeToDate = itemDateOnly <= toDateOnly;
         }
-        
+  
         return isAfterFromDate && isBeforeToDate;
       });
     }
   
     setFilteredData(filtered);
   };
-
+  
   // Update filters when date range changes
   useEffect(() => {
     handleFilterChange("dummy", ""); // Trigger filter reapplication
@@ -103,9 +104,9 @@ const AreaTable = () => {
   const downloadCSV = () => {
     const headers = TABLE_HEADS.map((th) => th.label).join(",");
     const rows = filteredData
-      .map((item) =>
+      .map((item, index) =>
         TABLE_HEADS.map((th) =>
-          item[th.key] ? `"${item[th.key]}"` : ""
+          th.key === "serial_number" ? index + 1 : item[th.key] ? `"${item[th.key]}"` : ""
         ).join(",")
       )
       .join("\n");
@@ -126,11 +127,11 @@ const AreaTable = () => {
 
     htmlContent += filteredData
       .map(
-        (item) =>
+        (item, index) =>
           `<tr>${TABLE_HEADS.map(
             (th) =>
               `<td>${
-                item[th.key] ? item[th.key] : "-"
+                th.key === "serial_number" ? index + 1 : item[th.key] ? item[th.key] : "-"
               }</td>`
           ).join("")}</tr>`
       )
@@ -227,11 +228,13 @@ const AreaTable = () => {
             </thead>
             <tbody>
               {filteredData.length > 0 ? (
-                filteredData.map((dataItem) => (
+                filteredData.map((dataItem, index) => (
                   <tr key={dataItem.id}>
-                    {TABLE_HEADS.map((th, index) => (
-                      <td key={index}>
-                        {th.key === "created_at"
+                    {TABLE_HEADS.map((th, thIndex) => (
+                      <td key={thIndex}>
+                        {th.key === "serial_number"
+                          ? index + 1
+                          : th.key === "created_at"
                           ? formatDateTime(dataItem[th.key])
                           : dataItem[th.key] || "-"}
                       </td>

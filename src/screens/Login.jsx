@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button, Form, Input } from 'antd';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -9,14 +9,57 @@ import './Login.css';
 
 const Login = () => {
     const [error, setError] = useState('');
+    const [timeoutId, setTimeoutId] = useState(null);
     const navigate = useNavigate();
+
+    useEffect(() => {
+        // Check for session ID changes
+        const sessionID = Cookies.get('session_id');
+        if (sessionID && sessionID !== getSessionIDFromServer()) {
+            handleLogout();
+        }
+
+        // Set up event listeners for user activity
+        const events = ['mousemove', 'keydown', 'click'];
+        events.forEach(event => window.addEventListener(event, resetTimeout));
+
+        // Set initial timeout
+        resetTimeout();
+
+        // Cleanup event listeners on unmount
+        return () => {
+            events.forEach(event => window.removeEventListener(event, resetTimeout));
+            clearTimeout(timeoutId);
+        };
+    }, []);
+
+    const getSessionIDFromServer = () => {
+        // Implement a function to get the current session ID from the server
+        // This is a placeholder function
+        return 'current_session_id_from_server';
+    };
+
+    const handleLogout = () => {
+        Cookies.remove('jwt');
+        Cookies.remove('session_id');
+        navigate('/');
+        toast.error('Session expired. Please log in again.');
+    };
+
+    const resetTimeout = () => {
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+        }
+        const id = setTimeout(handleLogout, 15 * 60 * 1000); // 15 minutes
+        setTimeoutId(id);
+    };
 
     const onFinish = async (values) => {
         console.log('Username:', values.username);
         console.log('Password:', values.password);
     
         try {
-            const response = await fetch("https://pinesphere.pinesphere.co.in/api/user_login/", { // this should be /api/user_login
+            const response = await fetch("https://pinesphere.pinesphere.co.in/api/user_login/", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -29,17 +72,16 @@ const Login = () => {
             }
     
             const data = await response.json();
-            Cookies.set('jwt', data.token);  // Adjust based on the actual response format
+            Cookies.set('jwt', data.token);
+            Cookies.set('session_id', data.session_id); // Adjust based on the actual response format
             navigate("/dashboard");
         } catch (error) {
             console.error('Error during login:', error.message);
             toast.error('Incorrect username or password');
         }
     };
-    console.log('Request URL:', "/api/user_login/");
-    
+
     const onFinishFailed = (errorInfo) => {
-        // Handle form validation failures if any
         console.log('Failed:', errorInfo);
     };
 
