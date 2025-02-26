@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 const AreaCards = () => {
-  const [underperformingCount, setUnderperformingCount] = useState(0);
+ 
   const [lineNumberCount, setLineNumberCount] = useState(0);
   const [machineCount, setMachineCount] = useState(0);
   const [efficiencyMetrics, setEfficiencyMetrics] = useState([]);
@@ -22,9 +22,7 @@ const AreaCards = () => {
       }
     };
 
-    fetchData("https://pinesphere.pinesphere.co.in/api/get_underperforming_operators/", (data) =>
-      setUnderperformingCount(data.underperforming_operator_count || 0)
-    );
+  
     fetchData("https://pinesphere.pinesphere.co.in/api/line_count/", (data) =>
       setLineNumberCount(data.line_number_count || 0)
     );
@@ -56,9 +54,7 @@ const AreaCards = () => {
     });
 
     const interval = setInterval(() => {
-      fetchData("https://pinesphere.pinesphere.co.in/api/get_underperforming_operators/", (data) =>
-        setUnderperformingCount(data.underperforming_operator_count || 0)
-      );
+     
       fetchData("https://pinesphere.pinesphere.co.in/api/line_count/", (data) =>
         setLineNumberCount(data.line_number_count || 0)
       );
@@ -99,11 +95,7 @@ const AreaCards = () => {
   }, []);
 
   const machineData = [
-    {
-      title: "Underperforming Operator",
-      count: underperformingCount,
-      colors: ["#e4e8ef", "#f54242"],
-    },
+  
     {
       title: "Line Number Count",
       count: lineNumberCount,
