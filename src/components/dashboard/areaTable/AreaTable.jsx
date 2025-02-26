@@ -3,7 +3,7 @@ import { FaFilter, FaRedo } from "react-icons/fa"; // Add FaRedo import
 import "./AreaTable.scss";
 
 const TABLE_HEADS = [
-  { label: "Serial Number", key: "serial_number" }, // Add Serial Number
+  { label: "S.No", key: "serial_number" }, // Add Serial Number
   { label: "Machine ID", key: "MACHINE_ID" },
   { label: "Line Number", key: "LINE_NUMB" },
   { label: "Operator ID", key: "OPERATOR_ID" },
@@ -43,8 +43,10 @@ const AreaTable = () => {
       .then((response) => response.json())
       .then((data) => {
         if (Array.isArray(data)) {
-          setTableData(data);
-          setFilteredData(data);
+          // Sort data by 'created_at' in descending order
+          const sortedData = data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+          setTableData(sortedData);
+          setFilteredData(sortedData);
         } else {
           console.error("Fetched data is not an array:", data);
         }
@@ -163,6 +165,12 @@ const AreaTable = () => {
     // Removed window.location.reload()
   };
 
+  // Extract unique values for each column
+  const getUniqueValues = (key) => {
+    const values = tableData.map((item) => item[key]).filter((value) => value !== undefined && value !== null);
+    return [...new Set(values)];
+  };
+
   return (
     <section className="content-area-table">
       <div className="data-table-info">
@@ -212,14 +220,18 @@ const AreaTable = () => {
                   {TABLE_HEADS.map((th, index) => (
                     <th key={index}>
                       {th.key !== "actions" ? (
-                        <input
-                          type="text"
-                          placeholder="Filter..."
-                          className="filter-input"
+                        <select
+                          className="filter-select"
                           value={filters[th.key] || ""}
                           onChange={(e) => handleFilterChange(th.key, e.target.value)}
-                          onKeyPress={(e) => handleKeyPress(e, th.key)} // Add key press listener
-                        />
+                        >
+                          <option value="">All</option>
+                          {getUniqueValues(th.key).map((value, idx) => (
+                            <option key={idx} value={value}>
+                              {value}
+                            </option>
+                          ))}
+                        </select>
                       ) : null}
                     </th>
                   ))}
