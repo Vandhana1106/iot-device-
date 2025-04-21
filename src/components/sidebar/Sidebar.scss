@@ -180,3 +180,14 @@
     margin-top: auto;
   }
 }
+.submenu {
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.menu-link-toggle {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+}

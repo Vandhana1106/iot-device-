@@ -70,7 +70,12 @@ import SunIcon from "./assets/icons/sun.svg";
 import BaseLayout from "./layout/BaseLayout";
 import { Dashboard, PageNotFound, Reports, Login } from "./screens";
 import Cookies from "js-cookie";
-
+import Operatoroverall from "./components/dashboard/areaTable/Operatoroverall";
+import Lineoverall from "./components/dashboard/areaTable/Lineoverall";
+import OperatorReport from "./components/Operator_Report/OperatorReport";
+import LineReport from "./components/Line_Report/LineReport";
+import MachineReport from "./components/Operator_Report/MachineReport";
+import ConsolidatedReports from "./components/dashboard/areaTable/ConsolidatedReports";
 const ProtectedRoute = ({ component: Component }) => (
   Cookies.get('jwt') ? <Component /> : <Navigate to='/' />
 );
@@ -100,11 +105,22 @@ function App() {
           <Route element={<BaseLayout />}>
             <Route path="/dashboard" element={<ProtectedRoute component={Dashboard} />} />
             <Route path="/reports" element={<ProtectedRoute component={Reports} />} />
+            <Route path="/op" element={<ProtectedRoute component={Operatoroverall} />} />
+            <Route path="/lineoverall" element={<ProtectedRoute component={Lineoverall} />} />
+            <Route path="/ConsolidatedReports" element={<ProtectedRoute component={ConsolidatedReports} />} />
           </Route>
+          <Route path="/line-reports/:lineNumber" element={<LineReport />} />
+            
+
+           
+            <Route path="/operator/:operator_name" element={<ProtectedRoute component={OperatorReport} />} />
+            <Route path="/machine/:machine_id" element={<ProtectedRoute component={MachineReport} />} />
+
 
           {/* The login route should not use the BaseLayout */}
           {/* <Route path="/"  element={<LoginRedirect component={Login} />} /> */}
           <Route path="/" element={<Login />} />
+         
           
           <Route path="*" element={<PageNotFound />} />
         </Routes>

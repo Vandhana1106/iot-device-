@@ -23,14 +23,14 @@ const AreaCards = () => {
     };
 
   
-    fetchData("https://pinesphere.pinesphere.co.in/api/line_count/", (data) =>
+    fetchData("https://2nbcjqrb-8000.inc1.devtunnels.ms/api/line_count/", (data) =>
       setLineNumberCount(data.line_number_count || 0)
     );
-    fetchData("https://pinesphere.pinesphere.co.in/api/machine_count/", (data) =>
+    fetchData("https://2nbcjqrb-8000.inc1.devtunnels.ms/api/machine_count/", (data) =>
       setMachineCount(data.machine_id_count || 0)
     );
 
-    fetchData("https://pinesphere.pinesphere.co.in/api/calculate_efficiency/", (data) => {
+    fetchData("https://2nbcjqrb-8000.inc1.devtunnels.ms/api/calculate_efficiency/", (data) => {
       const formattedData = Object.keys(data).map((key) => ({
         line: key,
         efficiency: parseFloat(data[key].Efficiency),
@@ -38,7 +38,7 @@ const AreaCards = () => {
       setEfficiencyMetrics(formattedData);
     });
 
-    fetchData("https://pinesphere.pinesphere.co.in/api/calculate_operator_efficiency/", (data) => {
+    fetchData("https://2nbcjqrb-8000.inc1.devtunnels.ms/api/calculate_operator_efficiency/", (data) => {
       // Group efficiency by operator (sum efficiency of duplicates)
       const groupedData = data.reduce((acc, item) => {
         acc[item.operator] = (acc[item.operator] || 0) + item.efficiency;
@@ -55,14 +55,14 @@ const AreaCards = () => {
 
     const interval = setInterval(() => {
      
-      fetchData("https://pinesphere.pinesphere.co.in/api/line_count/", (data) =>
+      fetchData("https://2nbcjqrb-8000.inc1.devtunnels.ms/api/line_count/", (data) =>
         setLineNumberCount(data.line_number_count || 0)
       );
-      fetchData("https://pinesphere.pinesphere.co.in/api/machine_count/", (data) =>
+      fetchData("https://2nbcjqrb-8000.inc1.devtunnels.ms/api/machine_count/", (data) =>
         setMachineCount(data.machine_id_count || 0)
       );
 
-      fetchData("https://pinesphere.pinesphere.co.in/api/calculate_efficiency/", (data) => {
+      fetchData("https://2nbcjqrb-8000.inc1.devtunnels.ms/api/calculate_efficiency/", (data) => {
         const formattedData = Object.keys(data).map((key) => ({
           line: key,
           efficiency: parseFloat(data[key].Efficiency),
@@ -70,7 +70,7 @@ const AreaCards = () => {
         setEfficiencyMetrics(formattedData);
       });
 
-      fetchData("https://pinesphere.pinesphere.co.in/api/calculate_operator_efficiency/", (data) => {
+      fetchData("https://2nbcjqrb-8000.inc1.devtunnels.ms/api/calculate_operator_efficiency/", (data) => {
         const groupedData = data.reduce((acc, item) => {
           acc[item.operator] = (acc[item.operator] || 0) + item.efficiency;
           return acc;

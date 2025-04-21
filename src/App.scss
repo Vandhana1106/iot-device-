@@ -100,6 +100,40 @@ button {
   border: none;
   outline: 0;
   cursor: pointer;
+  padding: 30px;
+  
+}
+button1 {
+  background-color: #d4f5d4; /* Light green shade */
+  
+  outline: none;
+  cursor: pointer;
+  padding: 12px 15px;
+  color: green;
+  border-radius: 5px; /* Optional: rounded corners */
+  transition: all 0.3s ease; /* Smooth effect */
+}
+@media (max-width: 1024px) {
+  button1 {
+    padding: 8px 16px; /* Reduce padding */
+    font-size: 14px; /* Reduce font size */
+  }
+}
+
+/* Adjust for tablets and smaller screens */
+@media (max-width: 768px) {
+  button1 {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+}
+
+/* Adjust for mobile screens */
+@media (max-width: 480px) {
+  button1 {
+    padding: 5px 10px;
+    font-size: 12px;
+  }
 }
 
 ul {
