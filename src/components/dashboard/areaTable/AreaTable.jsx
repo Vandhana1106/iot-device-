@@ -57,7 +57,7 @@
 //   // Fetch initial data
 //   useEffect(() => {
 //     setIsLoading(true);
-//     fetch("https://2nbcjqrb-8000.inc1.devtunnels.ms/api/logs/")
+//     fetch("http://127.0.0.1:8000/api/logs/")
 //       .then((response) => response.json())
 //       .then((data) => {
 //         if (Array.isArray(data)) {
@@ -481,8 +481,8 @@
 import React, { useEffect, useState } from "react";
 import { FaFilter, FaRedo, FaCalendarAlt, FaDownload, FaSearch, FaChartBar, FaArrowLeft, FaTable } from "react-icons/fa";
 import "./AreaTable.scss";
-
 import MachineReport from "../../Operator_Report/MachineReport";
+import AllMachinesReport from "../../Operator_Report/AllMachinesReport";
 
 const TABLE_HEADS = [
   { label: "S.No", key: "serial_number" },
@@ -497,9 +497,9 @@ const TABLE_HEADS = [
   { label: "Stitch Count", key: "STITCH_COUNT" },
   { label: "Needle Runtime", key: "NEEDLE_RUNTIME" },
   { label: "Needle Stop Time", key: "NEEDLE_STOPTIME" },
- 
   { label: "Duration", key: "DEVICE_ID" },
   { label: "SPM", key: "RESERVE" },
+  { label: "Calculation", key: "calculation" }, // Added calculation column
   { label: "TX Log ID", key: "Tx_LOGID" },
   { label: "STR Log ID", key: "Str_LOGID" },
   { label: "Created At", key: "created_at" },
@@ -522,6 +522,36 @@ const formatDateForDisplay = (dateString) => {
   });
 };
 
+// Calculation function
+const calculateValue = (item) => {
+  // If operator id is 0 and mode is 2, set to 0
+  if (item.OPERATOR_ID === 0 && item.MODE === 2) {
+    return 0;
+  }
+
+  // Parse start and end times
+  const startTime = item.START_TIME ? new Date(`1970-01-01T${item.START_TIME}`) : null;
+  const endTime = item.END_TIME ? new Date(`1970-01-01T${item.END_TIME}`) : null;
+
+  if (!startTime || !endTime) return 1;
+
+  // Check time conditions
+  const isBreakTime1 = 
+    (startTime >= new Date(`1970-01-01T10:30:00`) && 
+     endTime <= new Date(`1970-01-01T10:40:00`));
+
+  const isBreakTime2 = 
+    (startTime >= new Date(`1970-01-01T13:20:00`) && 
+     endTime <= new Date(`1970-01-01T14:00:00`));
+
+  const isBreakTime3 = 
+    (startTime >= new Date(`1970-01-01T16:20:00`) && 
+     endTime <= new Date(`1970-01-01T16:30:00`));
+
+  // If any break time condition is met, return 0, otherwise 1
+  return (isBreakTime1 || isBreakTime2 || isBreakTime3) ? 0 : 1;
+};
+
 const MachineOverall = () => {
   const [tableData, setTableData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
@@ -538,17 +568,23 @@ const MachineOverall = () => {
   const [showTableView, setShowTableView] = useState(false);
   const [dataGenerated, setDataGenerated] = useState(false);
   const [machineReportData, setMachineReportData] = useState([]);
+  const [showAllMachines, setShowAllMachines] = useState(false);
+  const [allMachinesReportData, setAllMachinesReportData] = useState([]);
+  const [detailedData, setDetailedData] = useState([]);
+  const [filteredDetailedData, setFilteredDetailedData] = useState([]);
 
   // Fetch initial data
   useEffect(() => {
     setIsLoading(true);
-    fetch("https://2nbcjqrb-8000.inc1.devtunnels.ms/api/logs/")
+    fetch("http://127.0.0.1:8000/api/logs/")
       .then((response) => response.json())
       .then((data) => {
         if (Array.isArray(data)) {
           const sortedData = data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
           setTableData(sortedData);
+          setDetailedData(sortedData);
           setFilteredData([]);
+          setFilteredDetailedData([]);
           
           const uniqueMachineIds = [...new Set(sortedData.map(item => item.MACHINE_ID))].filter(Boolean);
           uniqueMachineIds.sort((a, b) => {
@@ -561,9 +597,6 @@ const MachineOverall = () => {
           });
           
           setMachineIds(uniqueMachineIds);
-          
-          console.log("Data loaded:", sortedData.length, "records");
-          console.log("Unique machine IDs:", uniqueMachineIds);
         } else {
           console.error("Fetched data is not an array:", data);
         }
@@ -577,7 +610,13 @@ const MachineOverall = () => {
 
   // Filter function
   const applyFilters = () => {
+    if (selectedMachineId === "all") {
+      fetchAllMachinesReport();
+      return;
+    }
+
     let filtered = [...tableData];
+    let filteredDetailed = [...detailedData];
     let filterDescription = [];
     
     if (selectedMachineId) {
@@ -586,14 +625,20 @@ const MachineOverall = () => {
         const selectedId = String(selectedMachineId).trim();
         return itemMachineId === selectedId;
       });
+
+      filteredDetailed = filteredDetailed.filter(item => {
+        const itemMachineId = String(item.MACHINE_ID || "").trim();
+        const selectedId = String(selectedMachineId).trim();
+        return itemMachineId === selectedId;
+      });
       
       filterDescription.push(`Machine ID: ${selectedMachineId}`);
-      console.log(`After machine ID filter: ${filtered.length} records match '${selectedMachineId}'`);
     }
 
     if (fromDate || toDate) {
       setDateFilterActive(true);
-      filtered = filtered.filter((item) => {
+      
+      const filterByDate = (item) => {
         if (!item.DATE) return false;
         
         try {
@@ -619,7 +664,10 @@ const MachineOverall = () => {
           console.error("Date filtering error:", e);
           return false;
         }
-      });
+      };
+
+      filtered = filtered.filter(filterByDate);
+      filteredDetailed = filteredDetailed.filter(filterByDate);
       
       if (fromDate && toDate) {
         filterDescription.push(`Date: ${formatDateForDisplay(fromDate)} to ${formatDateForDisplay(toDate)}`);
@@ -628,8 +676,6 @@ const MachineOverall = () => {
       } else if (toDate) {
         filterDescription.push(`Date: Until ${formatDateForDisplay(toDate)}`);
       }
-      
-      console.log("After date filters:", filtered.length, "records");
     } else {
       setDateFilterActive(false);
     }
@@ -645,52 +691,73 @@ const MachineOverall = () => {
             return itemValue.includes(filterValue);
           })
         );
+
+        filteredDetailed = filteredDetailed.filter((item) =>
+          activeFilters.every((filterKey) => {
+            const itemValue = String(item[filterKey] || "").toLowerCase();
+            const filterValue = filters[filterKey].toLowerCase();
+            return itemValue.includes(filterValue);
+          })
+        );
         
         activeFilters.forEach(key => {
           const columnName = TABLE_HEADS.find(h => h.key === key)?.label || key;
           filterDescription.push(`${columnName}: ${filters[key]}`);
         });
-        
-        console.log("After text filters:", filtered.length, "records");
       }
     }
     
     setFilterSummary(filterDescription.join(", "));
     setFilteredData(filtered);
+    setFilteredDetailedData(filteredDetailed);
     setFiltersApplied(true);
     setDataGenerated(true);
-    setShowTableView(false); // Show chart by default after generating data
+    setShowTableView(false);
+    setShowAllMachines(false);
+  };
+  
+  const fetchAllMachinesReport = () => {
+    setIsLoading(true);
+    const params = new URLSearchParams();
+    if (fromDate) params.append('from_date', fromDate);
+    if (toDate) params.append('to_date', toDate);
+
+    fetch(`http://127.0.0.1:8000/api/api/machines/all/reports/?${params}`)
+      .then(response => response.json())
+      .then(data => {
+        setAllMachinesReportData(data.allMachinesReport);
+        setIsLoading(false);
+        setDataGenerated(true);
+        setShowTableView(false);
+        setShowAllMachines(true);
+        setFiltersApplied(true);
+      })
+      .catch(error => {
+        console.error("Error fetching all machines report:", error);
+        setIsLoading(false);
+      });
   };
 
   const handleFilterChange = (key, value) => {
-    const updatedFilters = { ...filters, [key]: value };
-    setFilters(updatedFilters);
+    setFilters({ ...filters, [key]: value });
   };
   
   const handleMachineIdChange = (e) => {
-    const newMachineId = e.target.value;
-    console.log("Selected machine ID changed to:", newMachineId);
-    setSelectedMachineId(newMachineId);
+    setSelectedMachineId(e.target.value);
   };
   
   const handleFromDateChange = (e) => {
-    const newDate = e.target.value;
-    setFromDate(newDate);
-    console.log("From date changed to:", newDate);
+    setFromDate(e.target.value);
   };
   
   const handleToDateChange = (e) => {
-    const newDate = e.target.value;
-    setToDate(newDate);
-    console.log("To date changed to:", newDate);
+    setToDate(e.target.value);
   };
 
   const formatConsistentDateTime = (dateTimeString) => {
     if (!dateTimeString) return "-";
-    
     try {
       const dateTime = new Date(dateTimeString);
-      
       const year = dateTime.getFullYear();
       const month = String(dateTime.getMonth() + 1).padStart(2, '0');
       const day = String(dateTime.getDate()).padStart(2, '0');
@@ -698,7 +765,6 @@ const MachineOverall = () => {
       const minutes = String(dateTime.getMinutes()).padStart(2, '0');
       const seconds = String(dateTime.getSeconds()).padStart(2, '0');
       const ms = String(dateTime.getMilliseconds()).padStart(3, '0').slice(0, 2);
-      
       return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${ms}`;
     } catch (e) {
       console.error("Date formatting error:", e);
@@ -716,13 +782,14 @@ const MachineOverall = () => {
     setToDate("");
     setSelectedMachineId("");
     setFilteredData([]);
+    setFilteredDetailedData([]);
     setShowFilters(false);
     setDateFilterActive(false);
     setFilterSummary("");
     setFiltersApplied(false);
     setShowTableView(false);
     setDataGenerated(false);
-    console.log("Filters reset");
+    setShowAllMachines(false);
   };
 
   const handleMachineReportData = (data) => {
@@ -730,61 +797,106 @@ const MachineOverall = () => {
   };
 
   const downloadCSV = () => {
+    const dataToExport = showAllMachines ? detailedData : (showTableView ? filteredDetailedData : filteredData);
+    const headers = TABLE_HEADS.map(head => head.label);
+    
+    const rows = dataToExport.map((row, index) => {
+      const rowWithCalculation = {
+        ...row,
+        calculation: calculateValue(row)
+      };
+      
+      return headers.map(header => {
+        const key = TABLE_HEADS.find(th => th.label === header)?.key;
+        
+        if (key === "serial_number") {
+          return index + 1;
+        }
+        if (key === "created_at" && rowWithCalculation[key]) {
+          return formatConsistentDateTime(rowWithCalculation[key]);
+        }
+        return rowWithCalculation[key] || "";
+      });
+    });
+
     const csvContent = [
-      TABLE_HEADS.map(head => head.label).join(","),
-      ...filteredData.map(row => 
-        TABLE_HEADS.map(head => 
-          head.key === "created_at" && row[head.key] 
-            ? formatConsistentDateTime(row[head.key]) 
-            : row[head.key] || ""
-        ).join(",")
-      )
-    ].join("\n");
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
   
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `machine_${selectedMachineId}_data.csv`;
+    link.download = `machine_data_${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
   };
   
   const downloadHTML = () => {
-    const htmlContent = `
+    const dataToExport = showAllMachines ? detailedData : (showTableView ? filteredDetailedData : filteredData);
+    const headers = TABLE_HEADS.map(head => head.label);
+    
+    const rows = dataToExport.map((row, index) => {
+      const rowWithCalculation = {
+        ...row,
+        calculation: calculateValue(row)
+      };
+      
+      return `
+      <tr>
+        ${headers.map(header => {
+          const key = TABLE_HEADS.find(th => th.label === header)?.key;
+          
+          let value = "";
+          if (key === "serial_number") {
+            value = index + 1;
+          } else if (key === "created_at" && rowWithCalculation[key]) {
+            value = formatConsistentDateTime(rowWithCalculation[key]);
+          } else {
+            value = rowWithCalculation[key] || "";
+          }
+          return `<td>${value}</td>`;
+        }).join("")}
+      </tr>
+    `}).join("");
+
+    const htmlContent = `<!DOCTYPE html>
       <html>
       <head>
-        <title>Machine Data</title>
+        <title>Machine Data Report</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          h1 { color: #333; }
+          table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          th { background-color: #f2f2f2; }
+          tr:nth-child(even) { background-color: #f9f9f9; }
+          .report-info { margin-bottom: 20px; }
+        </style>
       </head>
       <body>
-        <table border="1">
-          <thead>
-            <tr>${TABLE_HEADS.map(head => `<th>${head.label}</th>`).join("")}</tr>
-          </thead>
-          <tbody>
-            ${filteredData.map(row => `
-              <tr>${TABLE_HEADS.map(head => `
-                <td>${
-                  head.key === "created_at" && row[head.key] 
-                    ? formatConsistentDateTime(row[head.key]) 
-                    : row[head.key] || ""
-                }</td>
-              `).join("")}</tr>
-            `).join("")}
-          </tbody>
+        <h1>Machine Data Report</h1>
+        <div class="report-info">
+          <p><strong>Generated on:</strong> ${new Date().toLocaleString()}</p>
+          ${fromDate ? `<p><strong>From Date:</strong> ${formatDateForDisplay(fromDate)}</p>` : ''}
+          ${toDate ? `<p><strong>To Date:</strong> ${formatDateForDisplay(toDate)}</p>` : ''}
+          ${selectedMachineId && selectedMachineId !== "all" ? `<p><strong>Machine ID:</strong> ${selectedMachineId}</p>` : ''}
+        </div>
+        <table>
+          <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+          <tbody>${rows}</tbody>
         </table>
       </body>
-      </html>
-    `;
-  
+      </html>`;
+    
     const blob = new Blob([htmlContent], { type: "text/html;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `machine_${selectedMachineId}_data.html`;
+    link.download = `machine_data_${new Date().toISOString().slice(0, 10)}.html`;
     link.click();
   };
 
   return (
     <section className="content-area-table">
-      {/* Filter section - always visible at the top */}
       <div className="filter-section">
         <div className="main-filters">
           <div className="machine-selector">
@@ -796,6 +908,7 @@ const MachineOverall = () => {
                 className="machine-dropdown"
               >
                 <option value="">Select a Machine</option>
+                <option value="all">All Machines</option>
                 {machineIds.map((id) => (
                   <option key={id} value={id}>{id}</option>
                 ))}
@@ -840,7 +953,7 @@ const MachineOverall = () => {
               <FaChartBar /> Generate
             </button>
 
-            {dataGenerated && (
+            {dataGenerated && !showAllMachines && (
               <button
                 className={`toggle-view-button view-toggle-button green-button ${!dataGenerated ? 'disabled' : ''}`}
                 onClick={toggleView}
@@ -869,7 +982,6 @@ const MachineOverall = () => {
         </div>
       </div>
 
-      {/* Content section - changes based on view */}
       <div className="content-section">
         {isLoading ? (
           <div className="loading-state">
@@ -881,6 +993,13 @@ const MachineOverall = () => {
             <FaSearch className="search-icon" />
             <p>Select a Machine ID and click Generate to view data</p>
           </div>
+        ) : showAllMachines ? (
+          <AllMachinesReport 
+            reportData={allMachinesReportData} 
+            fromDate={fromDate}
+            toDate={toDate}
+            detailedData={detailedData}
+          />
         ) : showTableView ? (
           <div className="table-container">
             <div className="table-header">
@@ -906,19 +1025,34 @@ const MachineOverall = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredData.map((dataItem, index) => (
-                    <tr key={index}>
-                      {TABLE_HEADS.map((th, thIndex) => (
-                        <td key={thIndex}>
-                          {th.key === "serial_number"
-                            ? index + 1
-                            : th.key === "created_at" && dataItem[th.key]
-                            ? formatConsistentDateTime(dataItem[th.key])
-                            : dataItem[th.key] || "-"}
-                        </td>
-                      ))}
+                  {filteredDetailedData.length > 0 ? (
+                    filteredDetailedData.map((dataItem, index) => {
+                      const itemWithCalculation = {
+                        ...dataItem,
+                        calculation: calculateValue(dataItem)
+                      };
+                      
+                      return (
+                        <tr key={index}>
+                          {TABLE_HEADS.map((th, thIndex) => (
+                            <td key={thIndex}>
+                              {th.key === "serial_number"
+                                ? index + 1
+                                : th.key === "created_at" && itemWithCalculation[th.key]
+                                ? formatConsistentDateTime(itemWithCalculation[th.key])
+                                : itemWithCalculation[th.key] || "-"}
+                            </td>
+                          ))}
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={TABLE_HEADS.length} className="no-data">
+                        No data available for the current filters
+                      </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>

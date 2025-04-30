@@ -41,7 +41,7 @@ const MachineReport = ({ machine_id, fromDate, toDate }) => {
     if (fromDate) params.append('from_date', fromDate);
     if (toDate) params.append('to_date', toDate);
 
-    fetch(`https://2nbcjqrb-8000.inc1.devtunnels.ms/api/api/machines/${machine_id}/reports/?${params}`)
+    fetch(`http://127.0.0.1:8000/api/api/machines/${machine_id}/reports/?${params}`)
       .then((response) => response.json())
       .then((data) => {
         const allTableData = data.tableData || [];

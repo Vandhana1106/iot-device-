@@ -95,7 +95,9 @@ const Lineoverall = () => {
   // Fetch initial data
   useEffect(() => {
     setIsLoading(true);
-    fetch("https://2nbcjqrb-8000.inc1.devtunnels.ms/api/logs/")
+    fetch("http://127.0.0.1:8000/api/logs/")
+    
+    
       .then((response) => response.json())
       .then((data) => {
         if (Array.isArray(data)) {
@@ -252,7 +254,8 @@ const Lineoverall = () => {
     if (fromDate) params.append('from_date', fromDate);
     if (toDate) params.append('to_date', toDate);
 
-    fetch(`http://localhost:8000/api/line-reports/all/?${params}`)
+    fetch(`http://127.0.0.1:8000/api/line-reports/all/?${params}`)
+    
       .then(response => response.json())
       .then(data => {
         setAllLinesReportData(data.allLinesReport);

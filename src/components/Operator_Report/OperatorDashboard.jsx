@@ -8,7 +8,7 @@ const OperatorDashboard = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch('https://2nbcjqrb-8000.inc1.devtunnels.ms/api/operator_summary/')
+    fetch('http://127.0.0.1:8000/api/operator_summary/')
       .then(response => response.json())
       .then(data => setOperators(data))
       .catch(error => console.error('Error fetching operators:', error));

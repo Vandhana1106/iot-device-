@@ -38,7 +38,7 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
       to_date: toDate || ''
     });
 
-    fetch(`https://2nbcjqrb-8000.inc1.devtunnels.ms/api/operator_report_by_name/${operator_name}/?${params}`)
+    fetch(`http://127.0.0.1:8000/api/operator_report_by_name/${operator_name}/?${params}`)
       .then((response) => response.json())
       .then((data) => {
         const allTableData = data.tableData;
