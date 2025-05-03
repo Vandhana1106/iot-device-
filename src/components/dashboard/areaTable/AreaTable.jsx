@@ -57,7 +57,7 @@
 //   // Fetch initial data
 //   useEffect(() => {
 //     setIsLoading(true);
-//     fetch("http://127.0.0.1:8000/api/logs/")
+//     fetch("https://2nbcjqrb-8000.inc1.devtunnels.ms/api/logs/")
 //       .then((response) => response.json())
 //       .then((data) => {
 //         if (Array.isArray(data)) {
@@ -576,7 +576,7 @@ const MachineOverall = () => {
   // Fetch initial data
   useEffect(() => {
     setIsLoading(true);
-    fetch("http://127.0.0.1:8000/api/logs/")
+    fetch("https://2nbcjqrb-8000.inc1.devtunnels.ms/api/logs/")
       .then((response) => response.json())
       .then((data) => {
         if (Array.isArray(data)) {
@@ -722,7 +722,7 @@ const MachineOverall = () => {
     if (fromDate) params.append('from_date', fromDate);
     if (toDate) params.append('to_date', toDate);
 
-    fetch(`http://127.0.0.1:8000/api/api/machines/all/reports/?${params}`)
+    fetch(`https://2nbcjqrb-8000.inc1.devtunnels.ms/api/api/machines/all/reports/?${params}`)
       .then(response => response.json())
       .then(data => {
         setAllMachinesReportData(data.allMachinesReport);

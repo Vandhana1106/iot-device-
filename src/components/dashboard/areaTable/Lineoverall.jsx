@@ -20,14 +20,13 @@ const TABLE_HEADS = [
   { label: "Needle Stop Time", key: "NEEDLE_STOPTIME" },
   { label: "Duration", key: "DEVICE_ID" },
   { label: "SPM", key: "RESERVE" },
-  
   { label: "TX Log ID", key: "Tx_LOGID" },
   { label: "STR Log ID", key: "Str_LOGID" },
-  { label: "Calculation", key: "calculation" },
   { label: "Created At", key: "created_at" },
 ];
 
 const formatDateTime = (dateTimeString) => {
+  if (!dateTimeString) return "-";
   const dateTime = new Date(dateTimeString);
   const formattedDate = dateTime.toISOString().split("T")[0];
   const formattedTime = dateTime.toTimeString().split(" ")[0];
@@ -45,225 +44,141 @@ const formatDateForDisplay = (dateString) => {
 };
 
 const calculateValue = (item) => {
-  // If operator id is 0 and mode is 2, set to 0
   if (item.OPERATOR_ID === 0 && item.MODE === 2) {
     return 0;
   }
 
-  // Parse start and end times
   const startTime = item.START_TIME ? new Date(`1970-01-01T${item.START_TIME}`) : null;
   const endTime = item.END_TIME ? new Date(`1970-01-01T${item.END_TIME}`) : null;
 
   if (!startTime || !endTime) return 1;
 
-  // Check time conditions
-  const isBreakTime1 = 
-    (startTime >= new Date(`1970-01-01T10:30:00`) && 
-     endTime <= new Date(`1970-01-01T10:40:00`));
+  const breakPeriods = [
+    { start: new Date(`1970-01-01T10:30:00`), end: new Date(`1970-01-01T10:40:00`) },
+    { start: new Date(`1970-01-01T13:20:00`), end: new Date(`1970-01-01T14:00:00`) },
+    { start: new Date(`1970-01-01T16:20:00`), end: new Date(`1970-01-01T16:30:00`) },
+  ];
 
-  const isBreakTime2 = 
-    (startTime >= new Date(`1970-01-01T13:20:00`) && 
-     endTime <= new Date(`1970-01-01T14:00:00`));
+  const isWithinBreakPeriod = breakPeriods.some(
+    (breakPeriod) => startTime >= breakPeriod.start && endTime <= breakPeriod.end
+  );
 
-  const isBreakTime3 = 
-    (startTime >= new Date(`1970-01-01T16:20:00`) && 
-     endTime <= new Date(`1970-01-01T16:30:00`));
-
-  // If any break time condition is met, return 0, otherwise 1
-  return (isBreakTime1 || isBreakTime2 || isBreakTime3) ? 0 : 1;
+  return isWithinBreakPeriod ? 0 : 1;
 };
 
 const Lineoverall = () => {
   const [tableData, setTableData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
-  const [filters, setFilters] = useState({});
-  const [showFilters, setShowFilters] = useState(false);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [selectedLineNumber, setSelectedLineNumber] = useState("");
-  const [lineNumbers, setLineNumbers] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [dateFilterActive, setDateFilterActive] = useState(false);
-  const [filterSummary, setFilterSummary] = useState("");
+  const [availableLineNumbers, setAvailableLineNumbers] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isFetchingLines, setIsFetchingLines] = useState(false);
   const [filtersApplied, setFiltersApplied] = useState(false);
   const [showTableView, setShowTableView] = useState(false);
   const [dataGenerated, setDataGenerated] = useState(false);
   const [lineReportData, setLineReportData] = useState([]);
   const [showAllLines, setShowAllLines] = useState(false);
   const [allLinesReportData, setAllLinesReportData] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  // Fetch initial data
   useEffect(() => {
-    setIsLoading(true);
-    fetch("http://127.0.0.1:8000/api/logs/")
+    if (fromDate && toDate) {
+      fetchAvailableLineNumbers();
+    } else {
+      setAvailableLineNumbers([]);
+      setSelectedLineNumber("");
+    }
+  }, [fromDate, toDate]);
+
+  const fetchAvailableLineNumbers = () => {
+    setIsFetchingLines(true);
     
-    
-      .then((response) => response.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          const sortedData = data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-          setTableData(sortedData);
-          setFilteredData([]);
-          
-          const uniqueLineNumbers = [...new Set(sortedData.map(item => item.LINE_NUMB))].filter(Boolean);
-          uniqueLineNumbers.sort((a, b) => {
-            const numA = Number(a);
-            const numB = Number(b);
-            if (!isNaN(numA) && !isNaN(numB)) {
-              return numA - numB;
-            }
-            return String(a).localeCompare(String(b));
-          });
-          setLineNumbers(uniqueLineNumbers);
-        } else {
-          console.error("Fetched data is not an array:", data);
+    const params = new URLSearchParams();
+    params.append('from_date', fromDate);
+    params.append('to_date', toDate);
+
+    fetch(`https://2nbcjqrb-8000.inc1.devtunnels.ms/api/logs/line-numbers/?${params}`)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
-        setIsLoading(false);
+        return response.json();
+      })
+      .then((data) => {
+        setAvailableLineNumbers(data.line_numbers || []);
       })
       .catch((error) => {
-        console.error("Error fetching data:", error);
-        setIsLoading(false);
+        console.error("Error fetching line numbers:", error);
+        setAvailableLineNumbers([]);
+      })
+      .finally(() => {
+        setIsFetchingLines(false);
       });
-  }, []);
+  };
 
-  // Filter function
   const applyFilters = () => {
-    if (selectedLineNumber === "all") {
-      // For "All Lines", filter by date range first
-      let allLinesFiltered = [...tableData];
-      
-      if (fromDate || toDate) {
-        allLinesFiltered = allLinesFiltered.filter((item) => {
-          if (!item.DATE) return false;
-          
-          try {
-            const itemDate = new Date(item.DATE);
-            if (isNaN(itemDate.getTime())) return false;
-            
-            const itemDateOnly = new Date(itemDate.getFullYear(), itemDate.getMonth(), itemDate.getDate());
-            
-            if (fromDate) {
-              const fromDateTime = new Date(fromDate);
-              const fromDateOnly = new Date(fromDateTime.getFullYear(), fromDateTime.getMonth(), fromDateTime.getDate());
-              if (itemDateOnly < fromDateOnly) return false;
-            }
-            
-            if (toDate) {
-              const toDateTime = new Date(toDate);
-              const toDateOnly = new Date(toDateTime.getFullYear(), toDateTime.getMonth(), toDateTime.getDate());
-              if (itemDateOnly > toDateOnly) return false;
-            }
-            
-            return true;
-          } catch (e) {
-            console.error("Date filtering error:", e);
-            return false;
-          }
-        });
-      }
-      
-      setFilteredData(allLinesFiltered);
-      fetchAllLinesReport();
+    setCurrentPage(1);
+    if (!selectedLineNumber) {
+      alert("Please select a Line Number");
       return;
     }
 
-    let filtered = [...tableData];
-    let filterDescription = [];
-    
-    if (selectedLineNumber) {
-      filtered = filtered.filter(item => {
-        const itemLineNumber = String(item.LINE_NUMB || "").trim();
-        const selectedLine = String(selectedLineNumber).trim();
-        return itemLineNumber === selectedLine;
-      });
-      
-      filterDescription.push(`Line Number: ${selectedLineNumber}`);
-    }
-    
-    if (fromDate || toDate) {
-      setDateFilterActive(true);
-      filtered = filtered.filter((item) => {
-        if (!item.DATE) return false;
-        
-        try {
-          const itemDate = new Date(item.DATE);
-          if (isNaN(itemDate.getTime())) return false;
-          
-          const itemDateOnly = new Date(itemDate.getFullYear(), itemDate.getMonth(), itemDate.getDate());
-          
-          if (fromDate) {
-            const fromDateTime = new Date(fromDate);
-            const fromDateOnly = new Date(fromDateTime.getFullYear(), fromDateTime.getMonth(), fromDateTime.getDate());
-            if (itemDateOnly < fromDateOnly) return false;
-          }
-          
-          if (toDate) {
-            const toDateTime = new Date(toDate);
-            const toDateOnly = new Date(toDateTime.getFullYear(), toDateTime.getMonth(), toDateTime.getDate());
-            if (itemDateOnly > toDateOnly) return false;
-          }
-          
-          return true;
-        } catch (e) {
-          console.error("Date filtering error:", e);
-          return false;
-        }
-      });
-      
-      if (fromDate && toDate) {
-        filterDescription.push(`Date: ${formatDateForDisplay(fromDate)} to ${formatDateForDisplay(toDate)}`);
-      } else if (fromDate) {
-        filterDescription.push(`Date: From ${formatDateForDisplay(fromDate)}`);
-      } else if (toDate) {
-        filterDescription.push(`Date: Until ${formatDateForDisplay(toDate)}`);
-      }
-    } else {
-      setDateFilterActive(false);
-    }
-
-    if (Object.keys(filters).length > 0) {
-      const activeFilters = Object.keys(filters).filter(key => filters[key] && key !== 'dummy');
-      
-      if (activeFilters.length > 0) {
-        filtered = filtered.filter((item) =>
-          activeFilters.every((filterKey) => {
-            const itemValue = String(item[filterKey] || "").toLowerCase();
-            const filterValue = filters[filterKey].toLowerCase();
-            return itemValue.includes(filterValue);
-          })
-        );
-        
-        activeFilters.forEach(key => {
-          const columnName = TABLE_HEADS.find(h => h.key === key)?.label || key;
-          filterDescription.push(`${columnName}: ${filters[key]}`);
-        });
-      }
-    }
-    
-    setFilterSummary(filterDescription.join(", "));
-    setFilteredData(filtered);
-    setFiltersApplied(true);
-    setDataGenerated(true);
-    setShowTableView(false);
-    setShowAllLines(false);
-  };
-  
-  const fetchAllLinesReport = () => {
     setIsLoading(true);
-    const params = new URLSearchParams();
-    if (fromDate) params.append('from_date', fromDate);
-    if (toDate) params.append('to_date', toDate);
+    setFiltersApplied(true);
+    setDataGenerated(false);
 
-    fetch(`http://127.0.0.1:8000/api/line-reports/all/?${params}`)
-    
+    const params = new URLSearchParams();
+    if (selectedLineNumber !== "all") {
+      params.append('line_number', selectedLineNumber);
+    }
+    params.append('from_date', fromDate);
+    params.append('to_date', toDate);
+
+    fetch(`https://2nbcjqrb-8000.inc1.devtunnels.ms/api/logs/filter/?${params}`)
+      .then((response) => response.json())
+      .then((data) => {
+        console.log("Fetched data:", data);
+        if (Array.isArray(data)) {
+          const sortedData = data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+          setTableData(sortedData);
+          setFilteredData(sortedData);
+          
+          if (selectedLineNumber === "all") {
+            fetchAllLinesReport(sortedData);
+          } else {
+            setDataGenerated(true);
+            setIsLoading(false);
+          }
+        } else {
+          console.error("Fetched data is not an array:", data);
+          setTableData([]);
+          setFilteredData([]);
+          setIsLoading(false);
+        }
+      })
+      .catch((error) => {
+        console.error("Error fetching filtered data:", error);
+        setTableData([]);
+        setFilteredData([]);
+        setIsLoading(false);
+      });
+  };
+
+  const fetchAllLinesReport = (filteredData) => {
+    const params = new URLSearchParams();
+    params.append('from_date', fromDate);
+    params.append('to_date', toDate);
+
+    fetch(`https://2nbcjqrb-8000.inc1.devtunnels.ms/api/line-reports/all/?${params}`)
       .then(response => response.json())
       .then(data => {
-        setAllLinesReportData(data.allLinesReport);
-        setIsLoading(false);
+        setAllLinesReportData(data.allLinesReport || []);
         setDataGenerated(true);
-        setShowTableView(false);
         setShowAllLines(true);
-        setFiltersApplied(true);
+        setIsLoading(false);
       })
       .catch(error => {
         console.error("Error fetching all lines report:", error);
@@ -271,20 +186,18 @@ const Lineoverall = () => {
       });
   };
 
-  const handleFilterChange = (key, value) => {
-    setFilters({ ...filters, [key]: value });
-  };
-  
   const handleLineNumberChange = (e) => {
     setSelectedLineNumber(e.target.value);
   };
   
   const handleFromDateChange = (e) => {
     setFromDate(e.target.value);
+    setSelectedLineNumber("");
   };
   
   const handleToDateChange = (e) => {
     setToDate(e.target.value);
+    setSelectedLineNumber("");
   };
 
   const formatConsistentDateTime = (dateTimeString) => {
@@ -310,29 +223,24 @@ const Lineoverall = () => {
   };
 
   const handleReset = () => {
-    setFilters({});
+    setSelectedLineNumber("");
     setFromDate("");
     setToDate("");
-    setSelectedLineNumber("");
+    setTableData([]);
     setFilteredData([]);
-    setShowFilters(false);
-    setDateFilterActive(false);
-    setFilterSummary("");
     setFiltersApplied(false);
-    setShowTableView(false);
     setDataGenerated(false);
+    setShowTableView(false);
     setShowAllLines(false);
+    setAvailableLineNumbers([]);
+    setCurrentPage(1);
   };
 
   const downloadCSV = () => {
     const csvContent = [
       TABLE_HEADS.map(head => head.label).join(","),
       ...filteredData.map(row => {
-        const rowWithCalculation = {
-          ...row,
-          calculation: calculateValue(row)
-        };
-        return TABLE_HEADS.map(head => rowWithCalculation[head.key] || "").join(",");
+        return TABLE_HEADS.map(head => row[head.key] || "").join(",");
       })
     ].join("\n");
 
@@ -356,12 +264,8 @@ const Lineoverall = () => {
           </thead>
           <tbody>
             ${filteredData.map(row => {
-              const rowWithCalculation = {
-                ...row,
-                calculation: calculateValue(row)
-              };
               return `
-                <tr>${TABLE_HEADS.map(head => `<td>${rowWithCalculation[head.key] || ""}</td>`).join("")}</tr>
+                <tr>${TABLE_HEADS.map(head => `<td>${row[head.key] || ""}</td>`).join("")}</tr>
               `;
             }).join("")}
           </tbody>
@@ -377,27 +281,16 @@ const Lineoverall = () => {
     link.click();
   };
 
+  // Pagination logic
+  const indexOfLastRow = currentPage * rowsPerPage;
+  const indexOfFirstRow = indexOfLastRow - rowsPerPage;
+  const currentRows = filteredData.slice(indexOfFirstRow, indexOfLastRow);
+  const totalPages = Math.ceil(filteredData.length / rowsPerPage);
+
   return (
     <section className="content-area-table">
       <div className="filter-section">
         <div className="main-filters">
-          <div className="machine-selector">
-            <label>Select Line Number:</label>
-            <div className="select-wrapper">
-              <select 
-                value={selectedLineNumber}
-                onChange={handleLineNumberChange}
-                className="machine-dropdown"
-              >
-                <option value="">Select a Line</option>
-                <option value="all">All Lines</option>
-                {lineNumbers.map((lineNum) => (
-                  <option key={lineNum} value={lineNum}>{lineNum}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
           <div className="date-filter">
             <div className="date-input-group">
               <div className="date-field">
@@ -423,10 +316,39 @@ const Lineoverall = () => {
               </div>
             </div>
           </div>
+
+          <div className="machine-selector">
+            <label>Select Line Number:</label>
+            <div className="select-wrapper">
+              <select
+                value={selectedLineNumber}
+                onChange={handleLineNumberChange}
+                className="line-number-select"
+                disabled={!fromDate || !toDate || isFetchingLines}
+              >
+                <option value="">
+                  {isFetchingLines 
+                    ? "Loading lines..." 
+                    : !fromDate || !toDate 
+                      ? "Select dates first" 
+                      : availableLineNumbers.length === 0 
+                        ? "No lines available" 
+                        : "Select a line number"}
+                </option>
+                <option value="all">All Lines</option>
+                {availableLineNumbers.map((lineNumber) => (
+                  <option key={lineNumber} value={lineNumber}>
+                    {lineNumber}
+                  </option>
+                ))}
+              </select>
+              {isFetchingLines && <div className="select-loading-indicator"></div>}
+            </div>
+          </div>
           
           <div className="apply-filter-container">
             <button
-              className={`toggle-view-button generate-button green-button ${!selectedLineNumber ? 'disabled' : ''}`}
+              className={`generate-button green-button ${!selectedLineNumber ? 'disabled' : ''}`}
               onClick={applyFilters}
               disabled={!selectedLineNumber}
               title="Apply Filters"
@@ -437,7 +359,7 @@ const Lineoverall = () => {
 
             {dataGenerated && !showAllLines && (
               <button
-                className={`toggle-view-button view-toggle-button green-button ${!dataGenerated ? 'disabled' : ''}`}
+                className={`view-toggle-button green-button ${!dataGenerated ? 'disabled' : ''}`}
                 onClick={toggleView}
                 disabled={!dataGenerated}
                 title={showTableView ? "View Chart" : "View Raw Data"}
@@ -468,12 +390,17 @@ const Lineoverall = () => {
         {isLoading ? (
           <div className="loading-state">
             <div className="loader"></div>
-            <p>Loading line logs data...</p>
+            <p>Loading data...</p>
           </div>
-        ) : !filtersApplied ? (
+        ) : !fromDate || !toDate ? (
           <div className="no-selection-state">
             <FaSearch className="search-icon" />
-            <p>Select a Line Number and click Generate to view data</p>
+            <p>Select a date range to view available line numbers</p>
+          </div>
+        ) : !selectedLineNumber ? (
+          <div className="no-selection-state">
+            <FaSearch className="search-icon" />
+            <p>{availableLineNumbers.length === 0 ? "No lines available for selected dates" : "Select a line number from the dropdown"}</p>
           </div>
         ) : showAllLines ? (
           <AllLinesReport 
@@ -498,47 +425,80 @@ const Lineoverall = () => {
               </div>
             </div>
             <div className="table-wrapper">
-              <table>
-                <thead>
-                  <tr>
-                    {TABLE_HEADS.map((th, index) => (
-                      <th key={index}>{th.label}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredData.map((dataItem, index) => {
-                    const itemWithCalculation = {
-                      ...dataItem,
-                      calculation: calculateValue(dataItem)
-                    };
-                    
-                    return (
-                      <tr key={index}>
-                        {TABLE_HEADS.map((th, thIndex) => (
-                          <td key={thIndex}>
-                            {th.key === "serial_number"
-                              ? index + 1
-                              : th.key === "created_at" && itemWithCalculation[th.key]
-                              ? formatConsistentDateTime(itemWithCalculation[th.key])
-                              : itemWithCalculation[th.key] || "-"}
-                          </td>
+              {filteredData.length > 0 ? (
+                <>
+                  <table>
+                    <thead>
+                      <tr>
+                        {TABLE_HEADS.map((th, index) => (
+                          <th key={index}>{th.label}</th>
                         ))}
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                    </thead>
+                    <tbody>
+                      {currentRows.map((dataItem, index) => (
+                        <tr key={index}>
+                          {TABLE_HEADS.map((th, thIndex) => (
+                            <td key={thIndex}>
+                              {th.key === "serial_number"
+                                ? indexOfFirstRow + index + 1
+                                : th.key === "created_at" && dataItem[th.key]
+                                ? formatConsistentDateTime(dataItem[th.key])
+                                : dataItem[th.key] || "-"}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div className="pagination-controls">
+                    <div className="rows-per-page">
+                      <span>Rows per page:</span>
+                      <select 
+                        value={rowsPerPage} 
+                        onChange={(e) => {
+                          setRowsPerPage(Number(e.target.value));
+                          setCurrentPage(1);
+                        }}
+                      >
+                        {[10, 25, 50, 100].map(size => (
+                          <option key={size} value={size}>{size}</option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div className="page-info">
+                      {`${indexOfFirstRow + 1}-${Math.min(indexOfLastRow, filteredData.length)} of ${filteredData.length}`}
+                    </div>
+                    
+                    <div className="page-buttons">
+                      <button 
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                      >
+                        Previous
+                      </button>
+                      <button 
+                        onClick={() => setCurrentPage(prev => 
+                          Math.min(prev + 1, Math.ceil(filteredData.length / rowsPerPage))
+                        )}
+                        disabled={currentPage === totalPages || totalPages === 0}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="no-data-state">
+                  <p>No data available for the selected filters</p>
+                </div>
+              )}
             </div>
           </div>
         ) : filteredData.length === 0 ? (
           <div className="no-data-state">
-            <p>No data available for the current filters</p>
-            <div className="filter-summary">
-              {selectedLineNumber && <div>Line Number: {selectedLineNumber}</div>}
-              {fromDate && <div>From date: {formatDateForDisplay(fromDate)}</div>}
-              {toDate && <div>To date: {formatDateForDisplay(toDate)}</div>}
-            </div>
+            <p>No data available for the selected filters</p>
           </div>
         ) : (
           <div className="line-report-section">

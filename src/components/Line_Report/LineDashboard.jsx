@@ -8,7 +8,7 @@ const LineDashboard = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch('http://127.0.0.1:8000/api/line_summary/')
+    fetch('https://2nbcjqrb-8000.inc1.devtunnels.ms/api/line_summary/')
       .then(response => response.json())
       .then(data => setLineSummary(data))
       .catch(error => console.error('Error fetching line summary:', error));

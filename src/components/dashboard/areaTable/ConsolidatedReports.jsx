@@ -63,7 +63,7 @@
 //     const fetchData = async () => {
 //       try {
 //         setLoading(true);
-//         const response = await fetch("http://127.0.0.1:8000/api/logs/");
+//         const response = await fetch("https://2nbcjqrb-8000.inc1.devtunnels.ms/api/logs/");
 //         if (!response.ok) {
 //           throw new Error(`HTTP error! status: ${response.status}`);
 //         }
@@ -550,7 +550,7 @@ const ConsolidatedReports = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const response = await fetch("http://127.0.0.1:8000/api/logs/");
+        const response = await fetch("https://2nbcjqrb-8000.inc1.devtunnels.ms/api/logs/");
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }

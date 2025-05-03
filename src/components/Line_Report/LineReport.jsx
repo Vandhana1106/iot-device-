@@ -44,7 +44,7 @@ const LineReport = ({ lineNumber, fromDate, toDate }) => {
     if (fromDate) params.append('from_date', fromDate);
     if (toDate) params.append('to_date', toDate);
 
-    fetch(`http://127.0.0.1:8000/api/line-reports/${lineNumber}/?${params}`)
+    fetch(`https://2nbcjqrb-8000.inc1.devtunnels.ms/api/line-reports/${lineNumber}/?${params}`)
       .then((response) => response.json())
       .then((data) => {
         setReportData({
@@ -88,6 +88,11 @@ const LineReport = ({ lineNumber, fromDate, toDate }) => {
   };
 
   const downloadCSV = () => {
+    if (!reportData.tableData || reportData.tableData.length === 0) {
+      console.error("No data available to download");
+      return;
+    }
+
     const headers = Object.keys(reportData.tableData[0] || {});
     const csvRows = [
       headers.join(','),
@@ -110,27 +115,59 @@ const LineReport = ({ lineNumber, fromDate, toDate }) => {
     document.body.removeChild(link);
   };
 
+  const safeToFixed = (value, decimals = 2) => {
+    if (value === undefined || value === null) return '0.00';
+    if (typeof value !== 'number') return value;
+    return value.toFixed(decimals);
+  };
+
   const downloadHTML = () => {
+    if (!reportData.tableData || reportData.tableData.length === 0) {
+      console.error("No data available to download");
+      return;
+    }
+
     const htmlContent = `<!DOCTYPE html>
       <html>
       <head>
+        <title>Line ${lineNumber} Report</title>
         <style>
-          body { font-family: Arial, sans-serif; }
-          table { border-collapse: collapse; width: 100%; }
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
           th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
           th { background-color: #f2f2f2; }
-          .title { text-align: center; }
-          .summary { margin-bottom: 20px; }
+          .report-header { margin-bottom: 20px; }
+          .summary-section { margin-bottom: 30px; }
+          .summary-item { margin-bottom: 10px; }
         </style>
       </head>
       <body>
-        <div class="summary">
-          <h2>Line ${lineNumber} Report</h2>
+        <div class="report-header">
+          <h1>Line ${lineNumber} Report</h1>
+          <p>Date Range: ${fromDate || 'N/A'} to ${toDate || 'N/A'}</p>
           <p>Generated on: ${new Date().toLocaleString()}</p>
-          <p>Total Available Hours: ${reportData.totalAvailableHours.toFixed(2)}</p>
-          <p>Productive Time: ${reportData.totalProductiveTime.hours.toFixed(2)} Hrs (${reportData.totalProductiveTime.percentage.toFixed(2)}%)</p>
-          <p>Non-Productive Time: ${reportData.totalNonProductiveTime.hours.toFixed(2)} Hrs (${reportData.totalNonProductiveTime.percentage.toFixed(2)}%)</p>
         </div>
+
+        <div class="summary-section">
+          <h2>Summary</h2>
+          <div class="summary-item">
+            <strong>Total Available Hours:</strong> ${safeToFixed(reportData.totalAvailableHours)}
+          </div>
+          <div class="summary-item">
+            <strong>Productive Time:</strong> ${safeToFixed(reportData.totalProductiveTime.hours)} Hrs (${safeToFixed(reportData.totalProductiveTime.percentage)}%)
+          </div>
+          <div class="summary-item">
+            <strong>Non-Productive Time:</strong> ${safeToFixed(reportData.totalNonProductiveTime.hours)} Hrs (${safeToFixed(reportData.totalNonProductiveTime.percentage)}%)
+          </div>
+          <div class="summary-item">
+            <strong>Average Sewing Speed:</strong> ${safeToFixed(reportData.averageSewingSpeed)}
+          </div>
+          <div class="summary-item">
+            <strong>Needle Runtime:</strong> ${safeToFixed(reportData.needleRuntimePercentage)}%
+          </div>
+        </div>
+
+        <h2>Detailed Data</h2>
         <table>
           <thead>
             <tr>
@@ -140,7 +177,9 @@ const LineReport = ({ lineNumber, fromDate, toDate }) => {
           <tbody>
             ${reportData.tableData.map(row => 
               `<tr>
-                ${Object.values(row).map(value => `<td>${value !== undefined ? value : ''}</td>`).join('')}
+                ${Object.values(row).map(value => 
+                  `<td>${typeof value === 'number' ? safeToFixed(value) : value || ''}</td>`
+                ).join('')}
               </tr>`
             ).join('')}
           </tbody>
@@ -191,25 +230,25 @@ const LineReport = ({ lineNumber, fromDate, toDate }) => {
                 <th>Sewing Speed</th>
                 <th>Stitch Count</th>
                 <th>Needle Runtime</th>
-                {/* <th>Machine Count</th> */}
+                <th>Machine Count</th>
               </tr>
             </thead>
             <tbody>
               {reportData.tableData.map((row, index) => (
                 <tr key={index}>
                   <td>{row.Date}</td>
-                  <td>{row["Sewing Hours (PT)"]?.toFixed(2) || '0.00'}</td>
-                  <td>{row["No Feeding Hours"]?.toFixed(2) || '0.00'}</td>
-                  <td>{row["Meeting Hours"]?.toFixed(2) || '0.00'}</td>
-                  <td>{row["Maintenance Hours"]?.toFixed(2) || '0.00'}</td>
-                  <td>{row["Idle Hours"]?.toFixed(2) || '0.00'}</td>
-                  <td>{row["Total Hours"]?.toFixed(2) || '0.00'}</td>
-                  <td>{row["Productive Time (PT) %"]?.toFixed(2) || '0.00'}%</td>
-                  <td>{row["Non-Productive Time (NPT) %"]?.toFixed(2) || '0.00'}%</td>
-                  <td>{row["Sewing Speed"]?.toFixed(2) || '0.00'}</td>
+                  <td>{safeToFixed(row["Sewing Hours (PT)"])}</td>
+                  <td>{safeToFixed(row["No Feeding Hours"])}</td>
+                  <td>{safeToFixed(row["Meeting Hours"])}</td>
+                  <td>{safeToFixed(row["Maintenance Hours"])}</td>
+                  <td>{safeToFixed(row["Idle Hours"])}</td>
+                  <td>{safeToFixed(row["Total Hours"])}</td>
+                  <td>{safeToFixed(row["Productive Time (PT) %"])}%</td>
+                  <td>{safeToFixed(row["Non-Productive Time (NPT) %"])}%</td>
+                  <td>{safeToFixed(row["Sewing Speed"])}</td>
                   <td>{row["Stitch Count"] || '0'}</td>
-                  <td>{row["Needle Runtime"]?.toFixed(2) || '0.00'}</td>
-                  {/* <td>{row["Machine Count"] || '0'}</td> */}
+                  <td>{safeToFixed(row["Needle Runtime"])}</td>
+                  <td>{row["Machine Count"] || '0'}</td>
                 </tr>
               ))}
             </tbody>
@@ -220,39 +259,36 @@ const LineReport = ({ lineNumber, fromDate, toDate }) => {
       <div className="top-indicators">
         <div className="indicator">
           <h4><FaTshirt /> Total Sewing Hours</h4>
-          <p>{reportData.totalProductiveTime.hours?.toFixed(2) || '0.00'} Hrs</p>
-          {/* <small>{reportData.totalProductiveTime.percentage?.toFixed(2) || '0.00'}% of total</small> */}
+          <p>{safeToFixed(reportData.totalProductiveTime.hours)} Hrs</p>
         </div>
         <div className="indicator">
           <h4><FaTools /> Total Non-Productive Hours</h4>
-          <p>{reportData.totalNonProductiveTime.hours.toFixed(2)} Hrs</p>
-          {/* <small>{reportData.totalNonProductiveTime.percentage.toFixed(2)}% of total</small> */}
+          <p>{safeToFixed(reportData.totalNonProductiveTime.hours)} Hrs</p>
         </div>
         <div className="indicator">
-  <h4><FaClock /> Total Hours</h4>
-  <p>{reportData.totalHours?.toFixed(2) || '0.00'} Hrs</p>
-{/* <small>Actual recorded ideal time (Mode 2)</small> */}
-</div>
+          <h4><FaClock /> Total Hours</h4>
+          <p>{safeToFixed(reportData.totalHours)} Hrs</p>
+        </div>
       </div>
 
       <div className="summary-tiles">
         <div className="tile production-percentage">
-          <p>{reportData.totalProductiveTime.percentage.toFixed(2)}%</p>
+          <p>{safeToFixed(reportData.totalProductiveTime.percentage)}%</p>
           <span>Productive Time</span>
         </div>
         <div className="tile average-speed">
-          <p>{reportData.averageSewingSpeed.toFixed(2)}</p>
+          <p>{safeToFixed(reportData.averageSewingSpeed)}</p>
           <span>Avg Sewing Speed</span>
         </div>
         <div className="tile needle-runtime-percentage">
-          <p>{reportData.needleRuntimePercentage.toFixed(2)}%</p>
+          <p>{safeToFixed(reportData.needleRuntimePercentage)}%</p>
           <span>Needle Runtime</span>
         </div>
       </div>
 
       <div className="chart-breakdown-container">
         <div className="graph-section">
-          <h3>Hours Breakdown (Total: {reportData.totalHours.toFixed(2)} Hrs)</h3>
+          <h3>Hours Breakdown (Total: {safeToFixed(reportData.totalHours)} Hrs)</h3>
           <Chart
             options={{
               chart: { type: "donut" },
@@ -264,11 +300,11 @@ const LineReport = ({ lineNumber, fromDate, toDate }) => {
                 "Idle Hours"
               ],
               colors: [
-                "#3E3561", // Productive Time (matches .production)
-                "#8E44AD", // No Feeding (matches .no-feeding)
-                "#E74C3C", // Meeting Hours (matches .meeting)
-                "#118374", // Maintenance (matches .non-production)
-                "#F8A723"  // Idle Time (matches .idle)
+                "#3E3561",
+                "#8E44AD",
+                "#E74C3C",
+                "#118374",
+                "#F8A723"
               ],
               legend: { show: false },
               dataLabels: { enabled: true },
@@ -280,10 +316,10 @@ const LineReport = ({ lineNumber, fromDate, toDate }) => {
                       total: {
                         show: true,
                         label: 'Total Hours',
-                        formatter: () => `${reportData.totalHours.toFixed(2)} Hrs`
+                        formatter: () => `${safeToFixed(reportData.totalHours)} Hrs`
                       },
                       value: {
-                        formatter: (val) => `${val.toFixed(2)} Hrs`
+                        formatter: (val) => `${safeToFixed(val)} Hrs`
                       }
                     }
                   }
@@ -293,7 +329,7 @@ const LineReport = ({ lineNumber, fromDate, toDate }) => {
                 y: {
                   formatter: (val) => {
                     const percentage = ((val / reportData.totalHours) * 100).toFixed(2);
-                    return `${val.toFixed(2)} Hrs (${percentage}%)`;
+                    return `${safeToFixed(val)} Hrs (${percentage}%)`;
                   }
                 }
               }
@@ -313,28 +349,23 @@ const LineReport = ({ lineNumber, fromDate, toDate }) => {
         <div className="hour-breakdown">
           <div className="hour-box">
             <span className="dot production"></span>
-            <p>{reportData.totalProductiveTime.hours.toFixed(2)} Hrs: Sewing Hours</p>
-            {/* <small>{reportData.totalProductiveTime.percentage.toFixed(2)}%</small> */}
+            <p>{safeToFixed(reportData.totalProductiveTime.hours)} Hrs: Sewing Hours</p>
           </div>
           <div className="hour-box">
             <span className="dot no-feeding"></span>
-            <p>{reportData.totalNonProductiveTime.breakdown.noFeedingHours.toFixed(2)} Hrs: No Feeding</p>
-            {/* <small>{((reportData.totalNonProductiveTime.breakdown.noFeedingHours / reportData.totalHours) * 100 || 0).toFixed(2)}%</small> */}
+            <p>{safeToFixed(reportData.totalNonProductiveTime.breakdown.noFeedingHours)} Hrs: No Feeding</p>
           </div>
           <div className="hour-box">
             <span className="dot meeting"></span>
-            <p>{reportData.totalNonProductiveTime.breakdown.meetingHours.toFixed(2)} Hrs: Meetings</p>
-            {/* <small>{((reportData.totalNonProductiveTime.breakdown.meetingHours / reportData.totalHours) * 100 || 0).toFixed(2)}%</small> */}
+            <p>{safeToFixed(reportData.totalNonProductiveTime.breakdown.meetingHours)} Hrs: Meetings</p>
           </div>
           <div className="hour-box">
             <span className="dot maintenances"></span>
-            <p>{reportData.totalNonProductiveTime.breakdown.maintenanceHours.toFixed(2)} Hrs: Maintenance</p>
-            {/* <small>{((reportData.totalNonProductiveTime.breakdown.maintenanceHours / reportData.totalHours) * 100 || 0).toFixed(2)}%</small> */}
+            <p>{safeToFixed(reportData.totalNonProductiveTime.breakdown.maintenanceHours)} Hrs: Maintenance</p>
           </div>
           <div className="hour-box">
             <span className="dot idle"></span>
-            <p>{reportData.totalNonProductiveTime.breakdown.idleHours.toFixed(2)} Hrs: Idle Time</p>
-            {/* <small>{((reportData.totalNonProductiveTime.breakdown.idleHours / reportData.totalHours) * 100 || 0).toFixed(2)}%</small> */}
+            <p>{safeToFixed(reportData.totalNonProductiveTime.breakdown.idleHours)} Hrs: Idle Time</p>
           </div>
         </div>
       </div>
