@@ -66,6 +66,29 @@ const calculateValue = (item) => {
   return isWithinBreakPeriod ? 0 : 1;
 };
 
+const formatConsistentDateTime = (dateTimeString) => {
+  if (!dateTimeString) return "-";
+  try {
+    // If the date is already in the correct format, return it as-is
+    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(dateTimeString)) {
+      return dateTimeString;
+    }
+    
+    // Otherwise, parse it and format it correctly
+    const dateTime = new Date(dateTimeString);
+    const year = dateTime.getFullYear();
+    const month = String(dateTime.getMonth() + 1).padStart(2, '0');
+    const day = String(dateTime.getDate()).padStart(2, '0');
+    const hours = String(dateTime.getHours()).padStart(2, '0');
+    const minutes = String(dateTime.getMinutes()).padStart(2, '0');
+    const seconds = String(dateTime.getSeconds()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  } catch (e) {
+    console.error("Date formatting error:", e);
+    return dateTimeString;
+  }
+};
+
 const Lineoverall = () => {
   const [tableData, setTableData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
@@ -100,7 +123,7 @@ const Lineoverall = () => {
     params.append('from_date', fromDate);
     params.append('to_date', toDate);
 
-    fetch(`https://2nbcjqrb-8000.inc1.devtunnels.ms/api/logs/line-numbers/?${params}`)
+    fetch(`https://oceanatlantic.pinesphere.co.in/api/logs/line-numbers/?${params}`)
       .then((response) => {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -137,7 +160,7 @@ const Lineoverall = () => {
     params.append('from_date', fromDate);
     params.append('to_date', toDate);
 
-    fetch(`https://2nbcjqrb-8000.inc1.devtunnels.ms/api/logs/filter/?${params}`)
+    fetch(`https://oceanatlantic.pinesphere.co.in/api/logs/filter/?${params}`)
       .then((response) => response.json())
       .then((data) => {
         console.log("Fetched data:", data);
@@ -172,7 +195,7 @@ const Lineoverall = () => {
     params.append('from_date', fromDate);
     params.append('to_date', toDate);
 
-    fetch(`https://2nbcjqrb-8000.inc1.devtunnels.ms/api/line-reports/all/?${params}`)
+    fetch(`https://oceanatlantic.pinesphere.co.in/api/line-reports/all/?${params}`)
       .then(response => response.json())
       .then(data => {
         setAllLinesReportData(data.allLinesReport || []);
@@ -200,24 +223,6 @@ const Lineoverall = () => {
     setSelectedLineNumber("");
   };
 
-  const formatConsistentDateTime = (dateTimeString) => {
-    if (!dateTimeString) return "-";
-    try {
-      const dateTime = new Date(dateTimeString);
-      const year = dateTime.getFullYear();
-      const month = String(dateTime.getMonth() + 1).padStart(2, '0');
-      const day = String(dateTime.getDate()).padStart(2, '0');
-      const hours = String(dateTime.getHours()).padStart(2, '0');
-      const minutes = String(dateTime.getMinutes()).padStart(2, '0');
-      const seconds = String(dateTime.getSeconds()).padStart(2, '0');
-      const ms = String(dateTime.getMilliseconds()).padStart(3, '0').slice(0, 2);
-      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${ms}`;
-    } catch (e) {
-      console.error("Date formatting error:", e);
-      return dateTimeString;
-    }
-  };
-
   const toggleView = () => {
     setShowTableView(!showTableView);
   };
@@ -240,7 +245,12 @@ const Lineoverall = () => {
     const csvContent = [
       TABLE_HEADS.map(head => head.label).join(","),
       ...filteredData.map(row => {
-        return TABLE_HEADS.map(head => row[head.key] || "").join(",");
+        return TABLE_HEADS.map(head => {
+          if (head.key === "created_at" && row[head.key]) {
+            return formatConsistentDateTime(row[head.key]);
+          }
+          return row[head.key] || "";
+        }).join(",");
       })
     ].join("\n");
 
@@ -265,7 +275,12 @@ const Lineoverall = () => {
           <tbody>
             ${filteredData.map(row => {
               return `
-                <tr>${TABLE_HEADS.map(head => `<td>${row[head.key] || ""}</td>`).join("")}</tr>
+                <tr>${TABLE_HEADS.map(head => {
+                  const value = head.key === "created_at" && row[head.key] 
+                    ? formatConsistentDateTime(row[head.key]) 
+                    : row[head.key] || "";
+                  return `<td>${value}</td>`;
+                }).join("")}</tr>
               `;
             }).join("")}
           </tbody>

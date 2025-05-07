@@ -68,10 +68,8 @@ const AllMachinesReport = ({ reportData = [], fromDate, toDate, detailedData = [
   };
 
   // Add filtering logic based on the provided fromDate and toDate
-  const filteredReportData = fromDate && toDate ? reportData.filter(machine => {
-    const machineDate = new Date(machine.date);
-    return machineDate >= new Date(fromDate) && machineDate <= new Date(toDate);
-  }) : reportData;
+  const filteredReportData =  reportData
+  console.log("Filtered Report Data:", reportData);
 
   const filteredDetailedData = fromDate && toDate ? detailedData.filter(row => {
     const rowDate = new Date(row.DATE);
@@ -100,6 +98,8 @@ const AllMachinesReport = ({ reportData = [], fromDate, toDate, detailedData = [
       "Machine ID": machine.machineId // Add machine ID to each row
     }))
   })) : [];
+  console.log("Processed Data:", processedData);
+  console.log("Filtered Detailed Data:", filteredReportData); 
 
   // Calculate totals with null checks
   const totals = filteredReportData ? filteredReportData.reduce((acc, machine) => {
@@ -393,6 +393,7 @@ const AllMachinesReport = ({ reportData = [], fromDate, toDate, detailedData = [
       </div>
     );
   }
+  console.log("Processed Data:", processedData);
 
   return (
     <div className="machine-container">

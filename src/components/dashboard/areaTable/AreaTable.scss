@@ -106,7 +106,6 @@
         
         .date-field {
           position: relative;
-          flex: 1;
           
           .calendar-icon {
             position: absolute;
@@ -119,8 +118,7 @@
           }
           
           .date-input {
-            width: 100%;
-            padding: 12px 12px 12px 38px;
+             padding: 12px 12px 12px 38px;
             border: 1px solid #ddd;
             border-radius: 8px;
             font-size: 15px;

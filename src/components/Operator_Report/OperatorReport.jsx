@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import Chart from "react-apexcharts";
 import { FaTshirt, FaClock, FaTools, FaDownload, FaFilter } from "react-icons/fa";
+import { FaAngleLeft, FaAngleRight } from "react-icons/fa";
 import "./OperatorStyles.css";
 
 const OperatorReport = ({ operator_name, fromDate, toDate }) => {
@@ -25,6 +26,10 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
     totalNeedleRuntime: 0
   });
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
   const [tableFilter, setTableFilter] = useState({
     fromDate: '',
     toDate: ''
@@ -38,7 +43,7 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
       to_date: toDate || ''
     });
 
-    fetch(`https://2nbcjqrb-8000.inc1.devtunnels.ms/api/operator_report_by_name/${operator_name}/?${params}`)
+    fetch(`https://oceanatlantic.pinesphere.co.in/api/operator_report_by_name/${operator_name}/?${params}`)
       .then((response) => response.json())
       .then((data) => {
         const allTableData = data.tableData;
@@ -59,9 +64,72 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
           tableData: allTableData,
           allTableData: allTableData,
         });
+        
+        // Reset to first page when new data is loaded
+        setCurrentPage(1);
       })
       .catch((error) => console.error("Error fetching report:", error));
   }, [operator_name, fromDate, toDate]);
+
+  // Pagination calculations
+  const indexOfLastRow = currentPage * rowsPerPage;
+  const indexOfFirstRow = indexOfLastRow - rowsPerPage;
+  const currentRows = reportData.tableData.slice(indexOfFirstRow, indexOfLastRow);
+  const totalPages = Math.ceil(reportData.tableData.length / rowsPerPage);
+
+  // Pagination navigation handlers
+  const goToNextPage = () => {
+    setCurrentPage(prev => Math.min(prev + 1, totalPages));
+  };
+
+  const goToPreviousPage = () => {
+    setCurrentPage(prev => Math.max(prev - 1, 1));
+  };
+
+  const goToPage = (pageNumber) => {
+    setCurrentPage(Math.min(Math.max(1, pageNumber), totalPages));
+  };
+
+  const handleRowsPerPageChange = (e) => {
+    setRowsPerPage(Number(e.target.value));
+    setCurrentPage(1); // Reset to first page when changing rows per page
+  };
+
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    const pageNumbers = [];
+    const maxVisiblePages = 5; // Show maximum 5 page numbers at a time
+    
+    if (totalPages <= maxVisiblePages) {
+      // Show all page numbers if total pages are less than or equal to maxVisiblePages
+      for (let i = 1; i <= totalPages; i++) {
+        pageNumbers.push(i);
+      }
+    } else {
+      // Show first page, last page, current page and pages around current page
+      const leftOffset = Math.min(Math.floor(maxVisiblePages / 2), currentPage - 1);
+      const rightOffset = Math.min(Math.floor(maxVisiblePages / 2), totalPages - currentPage);
+      
+      const startPage = Math.max(1, currentPage - leftOffset);
+      const endPage = Math.min(totalPages, currentPage + rightOffset);
+      
+      if (startPage > 1) {
+        pageNumbers.push(1);
+        if (startPage > 2) pageNumbers.push('...');
+      }
+      
+      for (let i = startPage; i <= endPage; i++) {
+        pageNumbers.push(i);
+      }
+      
+      if (endPage < totalPages) {
+        if (endPage < totalPages - 1) pageNumbers.push('...');
+        pageNumbers.push(totalPages);
+      }
+    }
+    
+    return pageNumbers;
+  };
 
   const handleTableFilterChange = (e) => {
     const { name, value } = e.target;
@@ -84,6 +152,9 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
       ...prev,
       tableData: filteredData
     }));
+    
+    // Reset to first page when filtering
+    setCurrentPage(1);
   };
 
   const resetTableFilter = () => {
@@ -92,6 +163,9 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
       ...prev,
       tableData: prev.allTableData
     }));
+    
+    // Reset to first page when clearing filter
+    setCurrentPage(1);
   };
 
   const downloadCSV = () => {
@@ -207,6 +281,9 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
         <div className="table-header">
           <h3>Operator Report</h3>
           <div className="table-controls">
+            <div className="filter-row">
+             
+            </div>
             
             <div className="actions-row">
               <div className="download-buttons">
@@ -241,7 +318,7 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
               </tr>
             </thead>
             <tbody>
-              {reportData.tableData.map((row, index) => (
+              {currentRows.map((row, index) => (
                 <tr key={index}>
                   <td>{row.Date}</td>
                   <td>{row["Operator ID"]}</td>
@@ -261,6 +338,59 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
               ))}
             </tbody>
           </table>
+        </div>
+        
+        {/* Pagination controls */}
+        <div className="pagination-controls">
+          <div className="rows-per-page">
+            <span>Rows per page:</span>
+            <select 
+              value={rowsPerPage} 
+              onChange={handleRowsPerPageChange}
+              className="rows-select"
+            >
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+            </select>
+          </div>
+          
+          <div className="pagination-info">
+            <span>
+              {indexOfFirstRow + 1}-{Math.min(indexOfLastRow, reportData.tableData.length)} of {reportData.tableData.length}
+            </span>
+          </div>
+          
+          <div className="pagination-buttons">
+            <button 
+              onClick={goToPreviousPage} 
+              disabled={currentPage === 1}
+              className="page-button"
+            >
+              <FaAngleLeft />
+            </button>
+            
+            {getPageNumbers().map((page, index) => (
+              page === '...' ? 
+                <span key={index} className="ellipsis">...</span> : 
+                <button
+                  key={index}
+                  onClick={() => goToPage(page)}
+                  className={`page-number ${currentPage === page ? 'active' : ''}`}
+                >
+                  {page}
+                </button>
+            ))}
+            
+            <button 
+              onClick={goToNextPage} 
+              disabled={currentPage === totalPages}
+              className="page-button"
+            >
+              <FaAngleRight />
+            </button>
+          </div>
         </div>
       </div>
       

@@ -6,7 +6,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://2nbcjqrb-8000.inc1.devtunnels.ms/',
+        target: 'https://oceanatlantic.pinesphere.co.in/',
         changeOrigin: true,
         secure: false,
       },

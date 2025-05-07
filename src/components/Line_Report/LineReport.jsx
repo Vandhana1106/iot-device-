@@ -44,7 +44,7 @@ const LineReport = ({ lineNumber, fromDate, toDate }) => {
     if (fromDate) params.append('from_date', fromDate);
     if (toDate) params.append('to_date', toDate);
 
-    fetch(`https://2nbcjqrb-8000.inc1.devtunnels.ms/api/line-reports/${lineNumber}/?${params}`)
+    fetch(`https://oceanatlantic.pinesphere.co.in/api/line-reports/${lineNumber}/?${params}`)
       .then((response) => response.json())
       .then((data) => {
         setReportData({
