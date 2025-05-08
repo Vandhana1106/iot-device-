@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import Chart from "react-apexcharts";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { FaTshirt, FaClock, FaTools, FaDownload } from "react-icons/fa";
 import "./LineStyles.css";
 
@@ -44,7 +44,7 @@ const LineReport = ({ lineNumber, fromDate, toDate }) => {
     if (fromDate) params.append('from_date', fromDate);
     if (toDate) params.append('to_date', toDate);
 
-    fetch(`https://oceanatlantic.pinesphere.co.in/api/line-reports/${lineNumber}/?${params}`)
+    fetch(`http://127.0.0.1:8000/api/line-reports/${lineNumber}/?${params}`)
       .then((response) => response.json())
       .then((data) => {
         setReportData({
@@ -198,6 +198,14 @@ const LineReport = ({ lineNumber, fromDate, toDate }) => {
     document.body.removeChild(link);
   };
 
+  const chartData = [
+    { name: "Sewing Hours", value: reportData.totalProductiveTime.hours, color: "#3E3561" },
+    { name: "No Feeding Hours", value: reportData.totalNonProductiveTime.breakdown.noFeedingHours, color: "#8E44AD" },
+    { name: "Meeting Hours", value: reportData.totalNonProductiveTime.breakdown.meetingHours, color: "#E74C3C" },
+    { name: "Maintenance Hours", value: reportData.totalNonProductiveTime.breakdown.maintenanceHours, color: "#118374" },
+    { name: "Idle Hours", value: reportData.totalNonProductiveTime.breakdown.idleHours, color: "#F8A723" }
+  ].filter(item => item.value > 0);
+
   return (
     <div className="line-container">
       <div className="table-section">
@@ -289,61 +297,32 @@ const LineReport = ({ lineNumber, fromDate, toDate }) => {
       <div className="chart-breakdown-container">
         <div className="graph-section">
           <h3>Hours Breakdown (Total: {safeToFixed(reportData.totalHours)} Hrs)</h3>
-          <Chart
-            options={{
-              chart: { type: "donut" },
-              labels: [
-                "Sewing Hours", 
-                "No Feeding Hours", 
-                "Meeting Hours", 
-                "Maintenance Hours", 
-                "Idle Hours"
-              ],
-              colors: [
-                "#3E3561",
-                "#8E44AD",
-                "#E74C3C",
-                "#118374",
-                "#F8A723"
-              ],
-              legend: { show: false },
-              dataLabels: { enabled: true },
-              plotOptions: {
-                pie: {
-                  donut: {
-                    labels: {
-                      show: true,
-                      total: {
-                        show: true,
-                        label: 'Total Hours',
-                        formatter: () => `${safeToFixed(reportData.totalHours)} Hrs`
-                      },
-                      value: {
-                        formatter: (val) => `${safeToFixed(val)} Hrs`
-                      }
-                    }
-                  }
-                }
-              },
-              tooltip: {
-                y: {
-                  formatter: (val) => {
-                    const percentage = ((val / reportData.totalHours) * 100).toFixed(2);
-                    return `${safeToFixed(val)} Hrs (${percentage}%)`;
-                  }
-                }
-              }
-            }}
-            series={[
-              reportData.totalProductiveTime.hours,
-              reportData.totalNonProductiveTime.breakdown.noFeedingHours,
-              reportData.totalNonProductiveTime.breakdown.meetingHours,
-              reportData.totalNonProductiveTime.breakdown.maintenanceHours,
-              reportData.totalNonProductiveTime.breakdown.idleHours
-            ]}
-            type="donut"
-            height={350}
-          />
+          <div style={{ width: '100%', height: '320px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={chartData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={100}
+                  paddingAngle={5}
+                  dataKey="value"
+                >
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  formatter={(value) => safeToFixed(value) + " Hrs"} 
+                  labelFormatter={(_, payload) => payload[0]?.name || ""}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="total-hours" style={{ textAlign: 'center', marginTop: '10px' }}>
+            <strong>Total Hours: {safeToFixed(reportData.totalHours)} Hrs</strong>
+          </div>
         </div>
 
         <div className="hour-breakdown">

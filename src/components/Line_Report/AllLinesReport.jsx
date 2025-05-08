@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import Chart from "react-apexcharts";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { FaTshirt, FaClock, FaTools, FaDownload, FaTable, FaChartBar, FaAngleLeft, FaAngleRight, FaAngleDoubleLeft, FaAngleDoubleRight } from "react-icons/fa";
 import "./LineStyles.css";
 
@@ -209,6 +209,15 @@ const AllLinesReport = ({ reportData, fromDate, toDate, detailedData }) => {
   const averageSewingSpeed = reportData.length > 0 ? 
     reportData.reduce((sum, line) => sum + (line.averageSewingSpeed || 0), 0) / reportData.length : 0;
 
+  // Define chart data with explicit colors like in LineReport.jsx
+  const chartData = [
+    { name: "Sewing Hours", value: totals.totalProductiveHours, color: "#3E3561" },
+    { name: "No Feeding Hours", value: totals.totalNoFeedingHours, color: "#8E44AD" },
+    { name: "Meeting Hours", value: totals.totalMeetingHours, color: "#E74C3C" },
+    { name: "Maintenance Hours", value: totals.totalMaintenanceHours, color: "#118374" },
+    { name: "Idle Hours", value: totals.totalIdleHours, color: "#F8A723" }
+  ].filter(item => item.value > 0);
+  
   if (showTableView) {
     return (
       <div className="line-container">
@@ -450,61 +459,32 @@ const AllLinesReport = ({ reportData, fromDate, toDate, detailedData }) => {
       <div className="chart-breakdown-container">
         <div className="graph-section">
           <h3>Hours Breakdown (All Lines Total: {totals.totalHours.toFixed(2)} Hrs)</h3>
-          <Chart
-            options={{
-              chart: { type: "donut" },
-              labels: [
-                "Sewing Hours", 
-                "No Feeding Hours", 
-                "Meeting Hours", 
-                "Maintenance Hours", 
-                "Idle Hours"
-              ],
-              colors: [
-                "#3E3561",
-                "#8E44AD",
-                "#E74C3C",
-                "#118374",
-                "#F8A723"
-              ],
-              legend: { show: false },
-              dataLabels: { enabled: true },
-              plotOptions: {
-                pie: {
-                  donut: {
-                    labels: {
-                      show: true,
-                      total: {
-                        show: true,
-                        label: 'Total Hours',
-                        formatter: () => `${totals.totalHours.toFixed(2)} Hrs`
-                      },
-                      value: {
-                        formatter: (val) => `${val.toFixed(2)} Hrs`
-                      }
-                    }
-                  }
-                }
-              },
-              tooltip: {
-                y: {
-                  formatter: (val) => {
-                    const percentage = ((val / totals.totalHours) * 100).toFixed(2);
-                    return `${val.toFixed(2)} Hrs (${percentage}%)`;
-                  }
-                }
-              }
-            }}
-            series={[
-              totals.totalProductiveHours,
-              totals.totalNoFeedingHours,
-              totals.totalMeetingHours,
-              totals.totalMaintenanceHours,
-              totals.totalIdleHours
-            ]}
-            type="donut"
-            height={350}
-          />
+          <div style={{ width: '100%', height: '320px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={chartData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={100}
+                  paddingAngle={5}
+                  dataKey="value"
+                >
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  formatter={(value) => `${value.toFixed(2)} Hrs`}
+                  labelFormatter={(_, payload) => payload[0]?.name || ""}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="total-hours" style={{ textAlign: 'center', marginTop: '10px' }}>
+            <strong>Total Hours: {totals.totalHours.toFixed(2)} Hrs</strong>
+          </div>
         </div>
 
         <div className="hour-breakdown">

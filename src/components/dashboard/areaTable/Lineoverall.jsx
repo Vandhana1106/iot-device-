@@ -20,6 +20,7 @@ const TABLE_HEADS = [
   { label: "Needle Stop Time", key: "NEEDLE_STOPTIME" },
   { label: "Duration", key: "DEVICE_ID" },
   { label: "SPM", key: "RESERVE" },
+  { label: "Calculation Value", key: "calculation_value" },
   { label: "TX Log ID", key: "Tx_LOGID" },
   { label: "STR Log ID", key: "Str_LOGID" },
   { label: "Created At", key: "created_at" },
@@ -123,7 +124,7 @@ const Lineoverall = () => {
     params.append('from_date', fromDate);
     params.append('to_date', toDate);
 
-    fetch(`https://oceanatlantic.pinesphere.co.in/api/logs/line-numbers/?${params}`)
+    fetch(`http://127.0.0.1:8000/api/logs/line-numbers/?${params}`)
       .then((response) => {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -160,12 +161,18 @@ const Lineoverall = () => {
     params.append('from_date', fromDate);
     params.append('to_date', toDate);
 
-    fetch(`https://oceanatlantic.pinesphere.co.in/api/logs/filter/?${params}`)
+    fetch(`http://127.0.0.1:8000/api/logs/filter/?${params}`)
       .then((response) => response.json())
       .then((data) => {
         console.log("Fetched data:", data);
         if (Array.isArray(data)) {
-          const sortedData = data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+          // Process data to add calculation_value property
+          const processedData = data.map(item => {
+            const calculation_value = calculateCalculationValue(item);
+            return { ...item, calculation_value };
+          });
+          
+          const sortedData = processedData.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
           setTableData(sortedData);
           setFilteredData(sortedData);
           
@@ -190,12 +197,72 @@ const Lineoverall = () => {
       });
   };
 
+  // Function to calculate whether a record should be included in calculations
+  const calculateCalculationValue = (item) => {
+    // Exclude records where OPERATOR_ID is 0 AND MODE is 2
+    if (item.OPERATOR_ID === "0" && item.MODE === 2) {
+      return 0;
+    }
+
+    // List of valid operator IDs
+    const validOperatorIDs = [
+      "3658143475", "3660306819", "3660499379", "3659262979",
+      "3661924643", "3661191843", "3653098739", "3659613555",
+      "3658619763", "3660851603", "3652395075", "3653353699",
+      "3654730995", "3660111891", "3660850451", "3661210371",
+      "3661215379", "3660650483", "3655499331", "3660137427",
+      "3655053075", "3655015683", "3660405379", "3662024435",
+      "3793893139"
+    ];
+
+    // Check if OPERATOR_ID is missing, invalid or equals 0
+    // This is to ensure only valid operators are considered
+    if (!item.OPERATOR_ID || 
+        item.OPERATOR_ID === "0" || 
+        item.OPERATOR_ID === 0 || 
+        !validOperatorIDs.includes(item.OPERATOR_ID.toString())) {
+      return 0;
+    }
+
+    // Check if the record falls within break time periods
+    const startTime = item.START_TIME ? new Date(`1970-01-01T${item.START_TIME}`) : null;
+    const endTime = item.END_TIME ? new Date(`1970-01-01T${item.END_TIME}`) : null;
+    
+    if (!startTime || !endTime) {
+      return 0; // If we can't determine times, don't include in calculation
+    }
+
+    // Check if outside working hours (8:25 AM to 7:35 PM)
+    const workStartTime = new Date('1970-01-01T08:25:00');
+    const workEndTime = new Date('1970-01-01T19:35:00');
+    const outsideWorkingHours = startTime < workStartTime || endTime > workEndTime;
+    
+    if (outsideWorkingHours) {
+      return 0;
+    }
+
+    // Define break periods
+    const breakPeriods = [
+      { start: new Date('1970-01-01T10:30:00'), end: new Date('1970-01-01T10:40:00') }, // 10:30-10:40 break
+      { start: new Date('1970-01-01T13:20:00'), end: new Date('1970-01-01T14:00:00') }, // 13:20-14:00 lunch
+      { start: new Date('1970-01-01T16:20:00'), end: new Date('1970-01-01T16:30:00') }  // 16:20-16:30 break
+    ];
+
+    // Check if the record falls entirely within any break period
+    const inBreakPeriod = breakPeriods.some(period => 
+      startTime >= period.start && endTime <= period.end
+    );
+
+    // Return 0 if in break period, 1 otherwise
+    return inBreakPeriod ? 0 : 1;
+  };
+
   const fetchAllLinesReport = (filteredData) => {
     const params = new URLSearchParams();
     params.append('from_date', fromDate);
     params.append('to_date', toDate);
 
-    fetch(`https://oceanatlantic.pinesphere.co.in/api/line-reports/all/?${params}`)
+    fetch(`http://127.0.0.1:8000/api/line-reports/all/?${params}`)
       .then(response => response.json())
       .then(data => {
         setAllLinesReportData(data.allLinesReport || []);
@@ -459,6 +526,8 @@ const Lineoverall = () => {
                                 ? indexOfFirstRow + index + 1
                                 : th.key === "created_at" && dataItem[th.key]
                                 ? formatConsistentDateTime(dataItem[th.key])
+                                : th.key === "calculation_value"
+                                ? dataItem[th.key] !== undefined ? dataItem[th.key] : "-"
                                 : dataItem[th.key] || "-"}
                             </td>
                           ))}

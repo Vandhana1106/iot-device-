@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import Chart from "react-apexcharts";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { FaTshirt, FaClock, FaTools, FaDownload, FaTable, FaChartBar, FaAngleLeft, FaAngleRight, FaAngleDoubleLeft, FaAngleDoubleRight } from "react-icons/fa";
 import "./MachineStyles.css";
 
@@ -68,7 +68,7 @@ const AllMachinesReport = ({ reportData = [], fromDate, toDate, detailedData = [
   };
 
   // Add filtering logic based on the provided fromDate and toDate
-  const filteredReportData =  reportData
+  const filteredReportData = reportData;
   console.log("Filtered Report Data:", reportData);
 
   const filteredDetailedData = fromDate && toDate ? detailedData.filter(row => {
@@ -99,7 +99,7 @@ const AllMachinesReport = ({ reportData = [], fromDate, toDate, detailedData = [
     }))
   })) : [];
   console.log("Processed Data:", processedData);
-  console.log("Filtered Detailed Data:", filteredReportData); 
+  console.log("Filtered Detailed Data:", filteredReportData);
 
   // Calculate totals with null checks
   const totals = filteredReportData ? filteredReportData.reduce((acc, machine) => {
@@ -129,33 +129,33 @@ const AllMachinesReport = ({ reportData = [], fromDate, toDate, detailedData = [
     totalIdleHours: 0
   };
 
-  const averageProductivePercentage = totals.totalHours > 0 ? 
+  const averageProductivePercentage = totals.totalHours > 0 ?
     (totals.totalProductiveHours / totals.totalHours) * 100 : 0;
-  const averageNonProductivePercentage = totals.totalHours > 0 ? 
+  const averageNonProductivePercentage = totals.totalHours > 0 ?
     (totals.totalNonProductiveHours / totals.totalHours) * 100 : 0;
-  const averageNeedleRuntimePercentage = filteredReportData && filteredReportData.length > 0 ? 
+  const averageNeedleRuntimePercentage = filteredReportData && filteredReportData.length > 0 ?
     filteredReportData.reduce((sum, machine) => sum + (machine.needleRuntimePercentage || 0), 0) / filteredReportData.length : 0;
-  const averageSewingSpeed = filteredReportData && filteredReportData.length > 0 ? 
+  const averageSewingSpeed = filteredReportData && filteredReportData.length > 0 ?
     filteredReportData.reduce((sum, machine) => sum + (machine.averageSewingSpeed || 0), 0) / filteredReportData.length : 0;
 
   const downloadCSV = () => {
-    const headers = showTableView 
-      ? DETAILED_TABLE_HEADS.map(head => head.label) 
+    const headers = showTableView
+      ? DETAILED_TABLE_HEADS.map(head => head.label)
       : SUMMARY_TABLE_HEADS.map(head => head.label);
-    
+
     const rows = showTableView
-      ? (filteredDetailedData || []).map((row, index) => 
-          DETAILED_TABLE_HEADS.map(head => 
-            head.key === "serial_number" ? index + 1 : 
+      ? (filteredDetailedData || []).map((row, index) =>
+        DETAILED_TABLE_HEADS.map(head =>
+          head.key === "serial_number" ? index + 1 :
             head.key === "created_at" && row[head.key] ? formatConsistentDateTime(row[head.key]) :
-            row[head.key] || ""
-          )
+              row[head.key] || ""
         )
-      : processedData.flatMap(machine => machine.tableData || []).map(row => 
-          SUMMARY_TABLE_HEADS.map(head => 
-            row[head.key]?.toFixed ? row[head.key].toFixed(2) : row[head.key] || ""
-          )
-        );
+      )
+      : processedData.flatMap(machine => machine.tableData || []).map(row =>
+        SUMMARY_TABLE_HEADS.map(head =>
+          row[head.key]?.toFixed ? row[head.key].toFixed(2) : row[head.key] || ""
+        )
+      );
 
     const csvContent = [
       headers.join(','),
@@ -166,25 +166,25 @@ const AllMachinesReport = ({ reportData = [], fromDate, toDate, detailedData = [
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `all_machines_${showTableView ? 'raw_data' : 'summary'}_${new Date().toISOString().slice(0,10)}.csv`);
+    link.setAttribute('download', `all_machines_${showTableView ? 'raw_data' : 'summary'}_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
   const downloadHTML = () => {
-    const headers = showTableView 
+    const headers = showTableView
       ? DETAILED_TABLE_HEADS.map(head => `<th>${head.label}</th>`).join('')
       : SUMMARY_TABLE_HEADS.map(head => `<th>${head.label}</th>`).join('');
-    
+
     const rows = showTableView
       ? (filteredDetailedData || []).map((row, index) => `
           <tr>
             ${DETAILED_TABLE_HEADS.map(head => `
               <td>${
-                head.key === "serial_number" ? index + 1 : 
-                head.key === "created_at" && row[head.key] ? formatConsistentDateTime(row[head.key]) :
-                row[head.key] || ''
+                head.key === "serial_number" ? index + 1 :
+                  head.key === "created_at" && row[head.key] ? formatConsistentDateTime(row[head.key]) :
+                    row[head.key] || ''
               }</td>
             `).join('')}
           </tr>
@@ -224,16 +224,25 @@ const AllMachinesReport = ({ reportData = [], fromDate, toDate, detailedData = [
         </table>
       </body>
       </html>`;
-    
+
     const blob = new Blob([htmlContent], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `all_machines_${showTableView ? 'raw_data' : 'summary'}_${new Date().toISOString().slice(0,10)}.html`);
+    link.setAttribute('download', `all_machines_${showTableView ? 'raw_data' : 'summary'}_${new Date().toISOString().slice(0, 10)}.html`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
+
+  // Define chart data with explicit colors like in LineReport.jsx
+  const chartData = [
+    { name: "Sewing Hours", value: totals.totalProductiveHours, color: "#3E3561" },
+    { name: "No Feeding Hours", value: totals.totalNoFeedingHours, color: "#8E44AD" },
+    { name: "Meeting Hours", value: totals.totalMeetingHours, color: "#E74C3C" },
+    { name: "Maintenance Hours", value: totals.totalMaintenanceHours, color: "#118374" },
+    { name: "Idle Hours", value: totals.totalIdleHours, color: "#F8A723" }
+  ].filter(item => item.value > 0);
 
   if (!reportData && !detailedData) {
     return <div className="loading-message">Loading report data...</div>;
@@ -246,7 +255,7 @@ const AllMachinesReport = ({ reportData = [], fromDate, toDate, detailedData = [
           <div className="table-header">
             <h3>All Machines Raw Data</h3>
             <div className="table-controls">
-              <button 
+              <button
                 className="toggle-view-button view-toggle-button green-button"
                 onClick={toggleView}
                 title="View Summary"
@@ -266,8 +275,8 @@ const AllMachinesReport = ({ reportData = [], fromDate, toDate, detailedData = [
           <div className="pagination-controls">
             <div className="rows-per-page">
               <label>Rows per page:</label>
-              <select 
-                value={rowsPerPage} 
+              <select
+                value={rowsPerPage}
                 onChange={(e) => {
                   setRowsPerPage(Number(e.target.value));
                   setCurrentPage(1);
@@ -283,30 +292,30 @@ const AllMachinesReport = ({ reportData = [], fromDate, toDate, detailedData = [
               Showing {indexOfFirstRow + 1}-{Math.min(indexOfLastRow, totalRows)} of {totalRows} rows
             </div>
             <div className="page-navigation">
-              <button 
-                onClick={goToFirstPage} 
+              <button
+                onClick={goToFirstPage}
                 disabled={currentPage === 1}
                 className="page-button"
               >
                 <FaAngleDoubleLeft />
               </button>
-              <button 
-                onClick={goToPreviousPage} 
+              <button
+                onClick={goToPreviousPage}
                 disabled={currentPage === 1}
                 className="page-button"
               >
                 <FaAngleLeft />
               </button>
               <span>Page {currentPage} of {totalPages}</span>
-              <button 
-                onClick={goToNextPage} 
+              <button
+                onClick={goToNextPage}
                 disabled={currentPage === totalPages}
                 className="page-button"
               >
                 <FaAngleRight />
               </button>
-              <button 
-                onClick={goToLastPage} 
+              <button
+                onClick={goToLastPage}
                 disabled={currentPage === totalPages}
                 className="page-button"
               >
@@ -358,30 +367,30 @@ const AllMachinesReport = ({ reportData = [], fromDate, toDate, detailedData = [
           </div>
           <div className="pagination-controls bottom">
             <div className="page-navigation">
-              <button 
-                onClick={goToFirstPage} 
+              <button
+                onClick={goToFirstPage}
                 disabled={currentPage === 1}
                 className="page-button"
               >
                 <FaAngleDoubleLeft />
               </button>
-              <button 
-                onClick={goToPreviousPage} 
+              <button
+                onClick={goToPreviousPage}
                 disabled={currentPage === 1}
                 className="page-button"
               >
                 <FaAngleLeft />
               </button>
               <span>Page {currentPage} of {totalPages}</span>
-              <button 
-                onClick={goToNextPage} 
+              <button
+                onClick={goToNextPage}
                 disabled={currentPage === totalPages}
                 className="page-button"
               >
                 <FaAngleRight />
               </button>
-              <button 
-                onClick={goToLastPage} 
+              <button
+                onClick={goToLastPage}
                 disabled={currentPage === totalPages}
                 className="page-button"
               >
@@ -401,7 +410,7 @@ const AllMachinesReport = ({ reportData = [], fromDate, toDate, detailedData = [
         <div className="table-header">
           <h3>All Machines Report</h3>
           <div className="table-controls">
-            <button 
+            <button
               className="toggle-view-button view-toggle-button green-button"
               onClick={toggleView}
               title="View Raw Data"
@@ -462,12 +471,10 @@ const AllMachinesReport = ({ reportData = [], fromDate, toDate, detailedData = [
         <div className="indicator">
           <h4><FaTshirt /> Total Sewing Hours</h4>
           <p>{totals.totalProductiveHours.toFixed(2)} Hrs</p>
-          
         </div>
         <div className="indicator">
           <h4><FaTools /> Total Non-Productive Hours </h4>
           <p>{totals.totalNonProductiveHours.toFixed(2)} Hrs</p>
-        
         </div>
         <div className="indicator">
           <h4><FaClock /> Total Hours </h4>
@@ -493,88 +500,52 @@ const AllMachinesReport = ({ reportData = [], fromDate, toDate, detailedData = [
       <div className="chart-breakdown-container">
         <div className="graph-section">
           <h3>Hours Breakdown (All Machines Total: {totals.totalHours.toFixed(2)} Hrs)</h3>
-          <Chart
-            options={{
-              chart: { type: "donut" },
-              labels: [
-                "Sewing Hours", 
-                "No Feeding Hours", 
-                "Meeting Hours", 
-                "Maintenance Hours", 
-                "Idle Hours"
-              ],
-              colors: [
-                "#3E3561",
-                "#8E44AD",
-                "#E74C3C",
-                "#118374",
-                "#F8A723"
-              ],
-              legend: { show: false },
-              dataLabels: { enabled: true },
-              plotOptions: {
-                pie: {
-                  donut: {
-                    labels: {
-                      show: true,
-                      total: {
-                        show: true,
-                        label: 'Total Hours',
-                        formatter: () => `${totals.totalHours.toFixed(2)} Hrs`
-                      },
-                      value: {
-                        formatter: (val) => `${val.toFixed(2)} Hrs`
-                      }
-                    }
-                  }
-                }
-              },
-              tooltip: {
-                y: {
-                  formatter: (val) => {
-                    const percentage = ((val / totals.totalHours) * 100).toFixed(2);
-                    return `${val.toFixed(2)} Hrs (${percentage}%)`;
-                  }
-                }
-              }
-            }}
-            series={[
-              totals.totalProductiveHours,
-              totals.totalNoFeedingHours,
-              totals.totalMeetingHours,
-              totals.totalMaintenanceHours,
-              totals.totalIdleHours
-            ]}
-            type="donut"
-            height={350}
-          />
+          <ResponsiveContainer width="100%" height={350}>
+            <PieChart>
+              <Pie
+                data={chartData}
+                dataKey="value"
+                cx="50%"
+                cy="50%"
+                innerRadius={60}
+                outerRadius={100}
+                paddingAngle={5}
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip
+                formatter={(value) => `${value.toFixed(2)} Hrs`}
+                labelFormatter={(_, payload) => payload[0]?.name || ""}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="total-hours" style={{ textAlign: 'center', marginTop: '10px' }}>
+            <strong>Total Hours: {totals.totalHours.toFixed(2)} Hrs</strong>
+          </div>
         </div>
 
         <div className="hour-breakdown">
           <div className="hour-box">
             <span className="dot production"></span>
             <p>{totals.totalProductiveHours.toFixed(2)} Hrs: Sewing Hours</p>
-            {/* <small>{averageProductivePercentage.toFixed(2)}%</small> */}
           </div>
           <div className="hour-box">
             <span className="dot no-feeding"></span>
             <p>{totals.totalNoFeedingHours.toFixed(2)} Hrs: No Feeding</p>
-            {/* <small>{((totals.totalNoFeedingHours / totals.totalHours) * 100 || 0).toFixed(2)}%</small> */}
           </div>
           <div className="hour-box">
             <span className="dot meeting"></span>
             <p>{totals.totalMeetingHours.toFixed(2)} Hrs: Meetings</p>
-            {/* <small>{((totals.totalMeetingHours / totals.totalHours) * 100 || 0).toFixed(2)}%</small> */}
           </div>
           <div className="hour-box">
             <span className="dot maintenances"></span>
             <p>{totals.totalMaintenanceHours.toFixed(2)} Hrs: Maintenance</p>
-            {/* <small>{((totals.totalMaintenanceHours / totals.totalHours) * 100 || 0).toFixed(2)}%</small> */}
           </div>
           <div className="hour-box">
             <span className="dot idle"></span>
             <p>{totals.totalIdleHours.toFixed(2)} Hrs: Idle Time</p>
-            {/* <small>{((totals.totalIdleHours / totals.totalHours) * 100 || 0).toFixed(2)}%</small> */}
           </div>
         </div>
       </div>

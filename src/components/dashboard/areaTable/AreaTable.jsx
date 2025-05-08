@@ -87,6 +87,9 @@ const MachineOverall = () => {
   const [detailedData, setDetailedData] = useState([]);
   const [filteredDetailedData, setFilteredDetailedData] = useState([]);
   const [dataLoaded, setDataLoaded] = useState(false);
+  // Add pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   // Fetch data when date range is applied
   const fetchData = async () => {
@@ -94,7 +97,7 @@ const MachineOverall = () => {
     
     setIsLoading(true);
     try {
-      let url = `https://oceanatlantic.pinesphere.co.in/api/logs/?`;
+      let url = `http://127.0.0.1:8000/api/logs/?`;
       if (fromDate) url += `from_date=${fromDate}&`;
       if (toDate) url += `to_date=${toDate}`;
       
@@ -252,7 +255,7 @@ const MachineOverall = () => {
       if (fromDate) params.append('from_date', fromDate);
       if (toDate) params.append('to_date', toDate);
 
-      const response = await fetch(`https://oceanatlantic.pinesphere.co.in/api/api/machines/all/reports/?${params}`);
+      const response = await fetch(`http://127.0.0.1:8000/api/api/machines/all/reports/?${params}`);
       const data = await response.json();
       
       setAllMachinesReportData(data.allMachinesReport || []);
@@ -430,6 +433,20 @@ const MachineOverall = () => {
     link.click();
   };
 
+  // Pagination logic
+  const totalRows = filteredDetailedData.length;
+  const totalPages = Math.ceil(totalRows / rowsPerPage);
+  const indexOfLastRow = currentPage * rowsPerPage;
+  const indexOfFirstRow = indexOfLastRow - rowsPerPage;
+  const currentDetailedRows = filteredDetailedData.slice(indexOfFirstRow, indexOfLastRow);
+
+  // Pagination navigation functions
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+  const goToFirstPage = () => paginate(1);
+  const goToLastPage = () => paginate(totalPages);
+  const goToNextPage = () => currentPage < totalPages && paginate(currentPage + 1);
+  const goToPreviousPage = () => currentPage > 1 && paginate(currentPage - 1);
+
   return (
     <section className="content-area-table">
       <div className="filter-section">
@@ -566,8 +583,8 @@ const MachineOverall = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredDetailedData.length > 0 ? (
-                    filteredDetailedData.map((dataItem, index) => {
+                  {currentDetailedRows.length > 0 ? (
+                    currentDetailedRows.map((dataItem, index) => {
                       const itemWithCalculation = {
                         ...dataItem,
                         calculation: calculateValue(dataItem)
@@ -596,6 +613,23 @@ const MachineOverall = () => {
                   )}
                 </tbody>
               </table>
+              <div className="pagination">
+                <button onClick={goToFirstPage} disabled={currentPage === 1}>
+                  First
+                </button>
+                <button onClick={goToPreviousPage} disabled={currentPage === 1}>
+                  Previous
+                </button>
+                <span>
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button onClick={goToNextPage} disabled={currentPage === totalPages}>
+                  Next
+                </button>
+                <button onClick={goToLastPage} disabled={currentPage === totalPages}>
+                  Last
+                </button>
+              </div>
             </div>
           </div>
         ) : filteredData.length === 0 ? (

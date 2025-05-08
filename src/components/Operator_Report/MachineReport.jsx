@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import Chart from "react-apexcharts";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { FaTshirt, FaClock, FaTools, FaDownload } from "react-icons/fa";
 import "./MachineStyles.css";
 
@@ -41,7 +41,7 @@ const MachineReport = ({ machine_id, fromDate, toDate }) => {
     if (fromDate) params.append('from_date', fromDate);
     if (toDate) params.append('to_date', toDate);
 
-    fetch(`https://oceanatlantic.pinesphere.co.in/api/api/machines/${machine_id}/reports/?${params}`)
+    fetch(`http://127.0.0.1:8000/api/api/machines/${machine_id}/reports/?${params}`)
       .then((response) => response.json())
       .then((data) => {
         const allTableData = data.tableData || [];
@@ -158,6 +158,15 @@ const MachineReport = ({ machine_id, fromDate, toDate }) => {
     document.body.removeChild(link);
   };
 
+  // Define chart data with explicit colors
+  const chartData = [
+    { name: "Sewing Hours", value: reportData.totalProductiveTime.hours || 0, color: "#3E3561" },
+    { name: "No Feeding Hours", value: reportData.totalNonProductiveTime.breakdown.noFeedingHours || 0, color: "#8E44AD" },
+    { name: "Meeting Hours", value: reportData.totalNonProductiveTime.breakdown.meetingHours || 0, color: "#E74C3C" },
+    { name: "Maintenance Hours", value: reportData.totalNonProductiveTime.breakdown.maintenanceHours || 0, color: "#118374" },
+    { name: "Idle Hours", value: reportData.totalNonProductiveTime.breakdown.idleHours || 0, color: "#F8A723" }
+  ].filter(item => item.value > 0);
+
   return (
     <div className="operator-container">
       <div className="table-section">
@@ -215,128 +224,85 @@ const MachineReport = ({ machine_id, fromDate, toDate }) => {
       </div>
 
       <div className="top-indicators">
-  <div className="indicator">
-    <h4><FaTshirt /> Total Sewing Hours</h4>
-    <p>{(reportData.totalProductiveTime.hours || 0).toFixed(2)} Hrs</p>
-    {/* <small>{(reportData.totalProductiveTime.percentage || 0).toFixed(2)}% of total</small> */}
-  </div>
-  <div className="indicator">
-    <h4><FaTools /> Total Non-Productive Hours</h4>
-    <p>{(reportData.totalNonProductiveTime.hours || 0).toFixed(2)} Hrs</p>
-    {/* <small>{(reportData.totalNonProductiveTime.percentage || 0).toFixed(2)}% of total</small> */}
-  </div>
-  <div className="indicator">
-    <h4><FaClock /> Total Hours</h4>
-    <p>{reportData.totalHours?.toFixed(2) || '0.00'} Hrs</p>
-    {/* <small>Actual recorded ideal time (Mode 2)</small> */}
-    {/* <small>{((reportData.totalNonProductiveTime.breakdown.idleHours / reportData.totalHours) * 100 || 0).toFixed(2)}% of total</small> */}
-  </div>
-</div>
+        <div className="indicator">
+          <h4><FaTshirt /> Total Sewing Hours</h4>
+          <p>{(reportData.totalProductiveTime.hours || 0).toFixed(2)} Hrs</p>
+        </div>
+        <div className="indicator">
+          <h4><FaTools /> Total Non-Productive Hours</h4>
+          <p>{(reportData.totalNonProductiveTime.hours || 0).toFixed(2)} Hrs</p>
+        </div>
+        <div className="indicator">
+          <h4><FaClock /> Total Hours</h4>
+          <p>{reportData.totalHours?.toFixed(2) || '0.00'} Hrs</p>
+        </div>
+      </div>
 
       <div className="summary-tiles">
-  <div className="tile production-percentage">
-    <p>{(reportData.totalProductiveTime.percentage || 0).toFixed(2)}%</p>
-    <span>Productive Time</span>
-  </div>
-  <div className="tile average-speed">
-    <p>{
-      reportData.tableData.length > 0 
-        ? (reportData.tableData.reduce((sum, row) => sum + (row["Sewing Speed"] || 0), 0) / reportData.tableData.length).toFixed(2)
-        : '0.00'
-    }</p>
-    <span>Average Sewing Speed</span>
-  </div>
-  {/* <div className="tile needle-runtime-percentage">
-    <p>{((reportData.totalNeedleRuntime / reportData.totalAvailableHours) * 100 || 0).toFixed(2)}%</p>
-    <span>Needle Runtime Percentage</span>
-  </div> */}
-</div>
+        <div className="tile production-percentage">
+          <p>{(reportData.totalProductiveTime.percentage || 0).toFixed(2)}%</p>
+          <span>Productive Time</span>
+        </div>
+        <div className="tile average-speed">
+          <p>{
+            reportData.tableData.length > 0 
+              ? (reportData.tableData.reduce((sum, row) => sum + (row["Sewing Speed"] || 0), 0) / reportData.tableData.length).toFixed(2)
+              : '0.00'
+          }</p>
+          <span>Average Sewing Speed</span>
+        </div>
+      </div>
 
       <div className="chart-breakdown-container">
         <div className="graph-section">
           <h3>Hours Breakdown (Total: {(reportData.totalHours || 0).toFixed(2)} Hrs)</h3>
-          <Chart
-            options={{
-              chart: { type: "donut" },
-              labels: [
-                "Sewing Hours", 
-                "No Feeding Hours", 
-                "Meeting Hours", 
-                "Maintenance Hours", 
-                "Idle Hours"
-              ],
-              colors: [
-                "#3E3561", // Productive Time (matches .production)
-                "#8E44AD", // No Feeding (matches .no-feeding)
-                "#E74C3C", // Meeting Hours (matches .meeting)
-                "#118374", // Maintenance (matches .non-production)
-                "#F8A723"  // Idle Time (matches .idle)
-              ],
-              legend: { show: false },
-              dataLabels: { enabled: true },
-              plotOptions: {
-                pie: {
-                  donut: {
-                    labels: {
-                      show: true,
-                      total: {
-                        show: true,
-                        label: 'Total Hours',
-                        formatter: () => `${(reportData.totalHours || 0).toFixed(2)} Hrs`
-                      },
-                      value: {
-                        formatter: (val) => `${val || 0} Hrs`
-                      }
-                    }
-                  }
-                }
-              },
-              tooltip: {
-                y: {
-                  formatter: (val) => {
-                    const percentage = ((val / reportData.totalHours) * 100).toFixed(2);
-                    return `${val || 0} Hrs (${percentage}%)`;
-                  }
-                }
-              }
-            }}
-            series={[
-              reportData.totalProductiveTime.hours || 0,
-              reportData.totalNonProductiveTime.breakdown.noFeedingHours || 0,
-              reportData.totalNonProductiveTime.breakdown.meetingHours || 0,
-              reportData.totalNonProductiveTime.breakdown.maintenanceHours || 0,
-              reportData.totalNonProductiveTime.breakdown.idleHours || 0
-            ]}
-            type="donut"
-            height={350}
-          />
+          <ResponsiveContainer width="100%" height={350}>
+            <PieChart>
+              <Pie
+                data={chartData}
+                dataKey="value"
+                cx="50%"
+                cy="50%"
+                innerRadius={60}
+                outerRadius={100}
+                paddingAngle={5}
+                fill="#8884d8"
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip 
+                formatter={(value) => `${value.toFixed(2)} Hrs`}
+                labelFormatter={(_, payload) => payload[0]?.name || ""}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="total-hours" style={{ textAlign: 'center', marginTop: '10px' }}>
+            <strong>Total Hours: {(reportData.totalHours || 0).toFixed(2)} Hrs</strong>
+          </div>
         </div>
 
         <div className="hour-breakdown">
           <div className="hour-box">
             <span className="dot production"></span>
             <p>{(reportData.totalProductiveTime.hours || 0).toFixed(2)} Hrs: Sewing Hours</p>
-            {/* <small>{(reportData.totalProductiveTime.percentage || 0).toFixed(2)}%</small> */}
           </div>
           <div className="hour-box">
             <span className="dot no-feeding"></span>
             <p>{(reportData.totalNonProductiveTime.breakdown.noFeedingHours || 0).toFixed(2)} Hrs: No Feeding Hours</p>
-            {/* <small>{((reportData.totalNonProductiveTime.breakdown.noFeedingHours / reportData.totalHours) * 100 || 0).toFixed(2)}%</small> */}
           </div>
           <div className="hour-box">
             <span className="dot meeting"></span>
             <p>{(reportData.totalNonProductiveTime.breakdown.meetingHours || 0).toFixed(2)} Hrs: Meeting Hours</p>
-            {/* <small>{((reportData.totalNonProductiveTime.breakdown.meetingHours / reportData.totalHours) * 100 || 0).toFixed(2)}%</small> */}
           </div>
           <div className="hour-box">
             <span className="dot maintenances"></span>
             <p>{(reportData.totalNonProductiveTime.breakdown.maintenanceHours || 0).toFixed(2)} Hrs: Maintenance Hours</p>
-            {/* <small>{((reportData.totalNonProductiveTime.breakdown.maintenanceHours / reportData.totalHours) * 100 || 0).toFixed(2)}%</small> */}
           </div>
           <div className="hour-box">
             <span className="dot idle"></span>
             <p>{(reportData.totalNonProductiveTime.breakdown.idleHours || 0).toFixed(2)} Hrs: Idle Hours</p>
-            {/* <small>{((reportData.totalNonProductiveTime.breakdown.idleHours / reportData.totalHours) * 100 || 0).toFixed(2)}%</small> */}
           </div>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import Chart from "react-apexcharts";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { FaTshirt, FaClock, FaTools, FaDownload, FaFilter } from "react-icons/fa";
 import { FaAngleLeft, FaAngleRight } from "react-icons/fa";
 import "./OperatorStyles.css";
@@ -43,7 +43,7 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
       to_date: toDate || ''
     });
 
-    fetch(`https://oceanatlantic.pinesphere.co.in/api/operator_report_by_name/${operator_name}/?${params}`)
+    fetch(`http://127.0.0.1:8000/api/operator_report_by_name/${operator_name}/?${params}`)
       .then((response) => response.json())
       .then((data) => {
         const allTableData = data.tableData;
@@ -275,6 +275,15 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
     reportData.todayNoFeedingHours + 
     reportData.todayMaintenanceHours;
 
+  // Prepare data for Recharts
+  const chartData = [
+    { name: "Sewing Hours", value: reportData.todaySewingHours, color: "#3E3561" },
+    { name: "No Feeding Hours", value: reportData.todayNoFeedingHours, color: "#118374" },
+    { name: "Maintenance Hours", value: reportData.todayMaintenanceHours, color: "#F8A723" },
+    { name: "Meeting Hours", value: reportData.todayMeetingHours, color: "#E74C3C" },
+    { name: "Idle Hours", value: reportData.todayIdleHours, color: "#8E44AD" }
+  ].filter(item => item.value > 0); // Only include items with values > 0
+
   return (
     <div className="operator-container">
       <div className="table-section">
@@ -427,38 +436,33 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
       <div className="chart-breakdown-container">
         <div className="graph-section">
           <h3>Hours Breakdown</h3>
-          <Chart
-            options={{
-              chart: { type: "donut" },
-              labels: ["Sewing Hours", "No Feeding Hours", "Maintenance Hours", "Meeting Hours", "Idle Hours"],
-              colors: ["#3E3561", "#118374", "#F8A723", "#E74C3C", "#8E44AD"],
-              legend: { show: false },
-              dataLabels: { enabled: true },
-              plotOptions: {
-                pie: {
-                  donut: {
-                    labels: {
-                      show: true,
-                      total: {
-                        show: true,
-                        label: "Total Hours",
-                        formatter: () => totalTodayHours.toFixed(2) + " Hrs",
-                      },
-                    },
-                  },
-                },
-              },
-            }}
-            series={[
-              reportData.todaySewingHours,
-              reportData.todayNoFeedingHours,
-              reportData.todayMaintenanceHours,
-              reportData.todayMeetingHours,
-              reportData.todayIdleHours,
-            ]}
-            type="donut"
-            height={320}
-          />
+          <div style={{ width: '100%', height: '320px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={chartData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={100}
+                  paddingAngle={5}
+                  dataKey="value"
+                  label={({ value }) => value > 0 ? value.toFixed(1) : null}
+                >
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  formatter={(value) => value.toFixed(2) + " Hrs"} 
+                  labelFormatter={(_, payload) => payload[0]?.name || ""}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="total-hours" style={{ textAlign: 'center', marginTop: '10px' }}>
+            <strong>Total Hours: {totalTodayHours.toFixed(2)} Hrs</strong>
+          </div>
         </div>
 
         <div className="hour-breakdown">

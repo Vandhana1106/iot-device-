@@ -40,7 +40,7 @@ const formatDateTime = (dateTimeString) => {
   }
 };
 
-const API_URL = "https://oceanatlantic.pinesphere.co.in/api/get_consolidated_logs/";  // Django API endpoint
+const API_URL = "http://127.0.0.1:8000/api/get_consolidated_logs/";  // Django API endpoint
 
 const ConsolidatedReports = () => {
   const [tableData, setTableData] = useState([]);
@@ -89,11 +89,22 @@ const ConsolidatedReports = () => {
       const data = await response.json();
       
       if (Array.isArray(data)) {
-        // Convert null operator_name to "Unknown" for better display
-        const processedData = data.map(item => ({
-          ...item,
-          operator_name: item.operator_name || "Unknown"
-        }));
+        // Filter out operators with OPERATOR_ID of 0 and any form of "unknown" name
+        const processedData = data
+          .filter(item => {
+            // Filter out OPERATOR_ID of 0
+            if (item.OPERATOR_ID === 0) return false;
+            
+            // Filter out any form of "unknown" name
+            const operatorName = (item.operator_name || "").trim().toLowerCase();
+            if (!operatorName || operatorName === "unknown" || operatorName === "") return false;
+            
+            return true;
+          })
+          .map(item => ({
+            ...item,
+            operator_name: item.operator_name || "Unknown" // This now only applies to valid names
+          }));
         
         const sortedData = processedData.sort((a, b) => 
           new Date(b.created_at || 0) - new Date(a.created_at || 0)
