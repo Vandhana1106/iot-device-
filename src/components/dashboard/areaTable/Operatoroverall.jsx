@@ -78,7 +78,7 @@ const Operatoroverall = () => {
     
     setIsLoading(true);
     try {
-      let url = `http://127.0.0.1:8000/api/logs/?`;
+      let url = `http://localhost:8000/api/logs/?`;
       if (fromDate) url += `from_date=${fromDate}&`;
       if (toDate) url += `to_date=${toDate}`;
       

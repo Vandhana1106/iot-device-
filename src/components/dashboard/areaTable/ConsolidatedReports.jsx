@@ -1,9 +1,14 @@
-import React, { useState } from "react";
-import { FaFilter, FaRedo, FaTimes, FaSearch, FaDownload, FaAngleLeft, FaAngleRight, FaAngleDoubleLeft, FaAngleDoubleRight } from "react-icons/fa";
+import React, { useState, useEffect } from "react";
+import { FaFilter, FaRedo, FaTimes, FaSearch, FaDownload, FaAngleLeft, FaAngleRight, FaAngleDoubleLeft, FaAngleDoubleRight, FaChartBar } from "react-icons/fa";
+import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
+import { Doughnut } from 'react-chartjs-2';
 import "./AreaTable.scss";
+import "./summary-styles.scss";
+
+ChartJS.register(ArcElement, Tooltip, Legend);
 
 const TABLE_HEADS = [
-  { label: "S.No", key: "serial_number" },
+  { label: "S.No", key: "index" },
   { label: "Machine ID", key: "MACHINE_ID" },
   { label: "Line Number", key: "LINE_NUMB" },
   { label: "Operator Name", key: "operator_name" },
@@ -34,22 +39,21 @@ const formatDateTime = (dateTimeString) => {
     const minutes = String(dateTime.getMinutes()).padStart(2, '0');
     const seconds = String(dateTime.getSeconds()).padStart(2, '0');
     
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.`;
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
   } catch (e) {
     return dateTimeString;
   }
 };
 
-const API_URL = "http://127.0.0.1:8000/api/get_consolidated_logs/";  // Django API endpoint
+const API_URL = "http://localhost:8000/api/get_consolidated_logs/";
 
 const ConsolidatedReports = () => {
   const [tableData, setTableData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
-  const [dependentFilteredData, setDependentFilteredData] = useState([]);
   const [filters, setFilters] = useState({
     MACHINE_ID: [],
     LINE_NUMB: [],
-    operator_name: [] // Replace OPERATOR_ID with operator_name
+    operator_name: []
   });
   const [showFilterPopup, setShowFilterPopup] = useState({
     show: false,
@@ -64,6 +68,22 @@ const ConsolidatedReports = () => {
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [summaryData, setSummaryData] = useState({
+    sewingHours: 0,
+    idleHours: 0,
+    meetingHours: 0,
+    noFeedingHours: 0,
+    maintenanceHours: 0,
+    totalHours: 0,
+    productiveTimePercent: 0,
+    nptPercent: 0,
+    sewingSpeed: 0,
+    stitchCount: 0,
+    needleRuntime: 0
+  });
+  const [showSummary, setShowSummary] = useState(false);
+  const [summaryDataAvailable, setSummaryDataAvailable] = useState(false);
+  const [activeFilters, setActiveFilters] = useState({});
 
   const fetchData = async () => {
     if (!fromDate && !toDate) {
@@ -75,12 +95,17 @@ const ConsolidatedReports = () => {
       setLoading(true);
       setError(null);
       
-      // Build query parameters
       const params = new URLSearchParams();
       if (fromDate) params.append('from_date', fromDate);
       if (toDate) params.append('to_date', toDate);
       
-      const response = await fetch(`${API_URL}?${params.toString()}`);
+      // Add all filter values to the API request
+      filters.MACHINE_ID.forEach(id => params.append('machine_id', id));
+      filters.LINE_NUMB.forEach(line => params.append('line_number', line));
+      filters.operator_name.forEach(name => params.append('operator_name', name));
+      
+      const requestUrl = `${API_URL}?${params.toString()}`;
+      const response = await fetch(requestUrl);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -88,48 +113,57 @@ const ConsolidatedReports = () => {
       
       const data = await response.json();
       
-      if (Array.isArray(data)) {
-        // Filter out operators with OPERATOR_ID of 0 and any form of "unknown" name
-        const processedData = data
-          .filter(item => {
-            // Filter out OPERATOR_ID of 0
-            if (item.OPERATOR_ID === 0) return false;
-            
-            // Filter out any form of "unknown" name
-            const operatorName = (item.operator_name || "").trim().toLowerCase();
-            if (!operatorName || operatorName === "unknown" || operatorName === "") return false;
-            
-            return true;
-          })
-          .map(item => ({
-            ...item,
-            operator_name: item.operator_name || "Unknown" // This now only applies to valid names
-          }));
+      if (data && Array.isArray(data.logs)) {
+        // Filter out unknown operators
+        let processedData = data.logs.filter(item => {
+          return item.OPERATOR_ID !== 0 && 
+                 item.operator_name && 
+                 !item.operator_name.toLowerCase().includes("unknown");
+        });
         
-        const sortedData = processedData.sort((a, b) => 
-          new Date(b.created_at || 0) - new Date(a.created_at || 0)
-        );
+        setTableData(processedData);
+        setFilteredData(processedData);
         
-        setTableData(sortedData);
-        setFilteredData(sortedData);
-        setDependentFilteredData(sortedData);
-        // Reset filters when fetching new data
-        setFilters({
-          MACHINE_ID: [],
-          LINE_NUMB: [],
-          operator_name: []
+        // Set summary data
+        if (data.summary) {
+          setSummaryData({
+            sewingHours: data.summary.sewing_hours || 0,
+            idleHours: data.summary.idle_hours || 0,
+            meetingHours: data.summary.meeting_hours || 0,
+            noFeedingHours: data.summary.no_feeding_hours || 0,
+            maintenanceHours: data.summary.maintenance_hours || 0,
+            totalHours: data.summary.total_hours || 0,
+            productiveTimePercent: data.summary.productive_percent || 0,
+            nptPercent: data.summary.npt_percent || 0,
+            sewingSpeed: data.summary.sewing_speed || 0,
+            stitchCount: data.summary.total_stitch_count || 0,
+            needleRuntime: data.summary.total_needle_runtime || 0
+          });
+          setSummaryDataAvailable(true);
+        } else {
+          setSummaryDataAvailable(false);
+        }
+        
+        setActiveFilters({
+          from_date: fromDate,
+          to_date: toDate,
+          machine_id: filters.MACHINE_ID.join(", ") || "All",
+          line_number: filters.LINE_NUMB.join(", ") || "All",
+          operator_name: filters.operator_name.join(", ") || "All"
         });
       } else {
-        throw new Error("Fetched data is not an array");
+        throw new Error("Invalid data format received from server");
       }
     } catch (error) {
       console.error("Error fetching data:", error);
       setError(error.message);
+      setSummaryDataAvailable(false);
     } finally {
       setLoading(false);
     }
   };
 
+  // Pagination functions
   const totalRows = filteredData.length;
   const totalPages = Math.ceil(totalRows / rowsPerPage);
   const indexOfLastRow = currentPage * rowsPerPage;
@@ -143,168 +177,64 @@ const ConsolidatedReports = () => {
   const goToPreviousPage = () => currentPage > 1 && paginate(currentPage - 1);
 
   const getFilterOptions = (type) => {
-    try {
-      // Get options based on the current dependent filtered data
-      const options = [...new Set(
-        dependentFilteredData
-          .map(item => item[type])
-          .filter(val => val !== undefined && val !== null)
-      )].sort();
-      
-      // Add "All" option at the beginning
-      return ["All", ...options];
-    } catch (error) {
-      console.error("Error getting filter options:", error);
-      return ["All"];
-    }
+    const options = [...new Set(
+      tableData
+        .map(item => item[type])
+        .filter(val => val !== undefined && val !== null)
+    )].sort((a, b) => {
+      if (typeof a === 'string' && typeof b === 'string') {
+        return a.localeCompare(b);
+      }
+      return a - b;
+    });
+    
+    return ["All", ...options];
   };
 
   const openFilterPopup = (type) => {
-    // First, update the dependent filtered data based on other active filters
-    updateDependentFilteredData(type);
-    
-    // Then get options for this filter type based on the updated dependent data
     const options = getFilterOptions(type);
     
     setShowFilterPopup({
       show: true,
       type,
       options,
-      selectedValues: filters[type] && filters[type].length > 0 ? [...filters[type]] : []
+      selectedValues: filters[type] || []
     });
     setSearchTerm("");
   };
-  
-  const updateDependentFilteredData = (currentFilterType) => {
-    // Start with the full dataset
-    let dataToFilter = [...tableData];
-    
-    // Apply date filtering
-    if (fromDate || toDate) {
-      dataToFilter = dataToFilter.filter((item) => {
-        try {
-          const itemDate = item.DATE ? new Date(item.DATE) : null;
-          if (!itemDate) return false;
-          
-          const itemDateOnly = new Date(
-            itemDate.getFullYear(), 
-            itemDate.getMonth(), 
-            itemDate.getDate()
-          );
-    
-          let isAfterFromDate = true;
-          let isBeforeToDate = true;
-    
-          if (fromDate) {
-            const fromDateTime = new Date(fromDate);
-            const fromDateOnly = new Date(
-              fromDateTime.getFullYear(), 
-              fromDateTime.getMonth(), 
-              fromDateTime.getDate()
-            );
-            isAfterFromDate = itemDateOnly >= fromDateOnly;
-          }
-    
-          if (toDate) {
-            const toDateTime = new Date(toDate);
-            const toDateOnly = new Date(
-              toDateTime.getFullYear(), 
-              toDateTime.getMonth(), 
-              toDateTime.getDate()
-            );
-            isBeforeToDate = itemDateOnly <= toDateOnly;
-          }
-    
-          return isAfterFromDate && isBeforeToDate;
-        } catch (e) {
-          console.error("Error processing date filter:", e);
-          return false;
-        }
-      });
-    }
-    
-    // Apply all other active filters except the current one being selected
-    Object.keys(filters).forEach(filterKey => {
-      // Skip the current filter type being selected
-      if (filterKey === currentFilterType) return;
-      
-      const selectedValues = filters[filterKey];
-      
-      // Skip filtering if no values are selected or "All" is selected
-      if (
-        !selectedValues || 
-        selectedValues.length === 0 || 
-        (selectedValues.includes("All") && selectedValues.length === getFilterOptions(filterKey).length)
-      ) {
-        return;
-      }
-      
-      // Filter by selected values (excluding "All")
-      const filterValuesList = selectedValues.filter(val => val !== "All");
-      if (filterValuesList.length > 0) {
-        dataToFilter = dataToFilter.filter(item => 
-          filterValuesList.includes(item[filterKey])
-        );
-      }
-    });
-    
-    // Update the dependent filtered data
-    setDependentFilteredData(dataToFilter);
-  };
 
   const toggleOptionSelection = (option) => {
-    const currentSelections = [...showFilterPopup.selectedValues];
-    
-    // Special handling for "All" option
-    if (option === "All") {
-      // If "All" is already selected, unselect everything
-      if (currentSelections.includes("All")) {
-        setShowFilterPopup(prev => ({
-          ...prev,
-          selectedValues: []
-        }));
+    setShowFilterPopup(prev => {
+      let newSelectedValues;
+      
+      if (option === "All") {
+        newSelectedValues = prev.selectedValues.includes("All") ? [] : [...prev.options.filter(opt => opt !== "All")];
       } else {
-        // Select all options
-        const allOptions = [...showFilterPopup.options];
-        setShowFilterPopup(prev => ({
-          ...prev,
-          selectedValues: allOptions
-        }));
-      }
-    } else {
-      // Remove "All" if it was selected and we're selecting individual options
-      let updatedSelections = currentSelections.includes("All") 
-        ? currentSelections.filter(item => item !== "All")
-        : [...currentSelections];
-      
-      if (updatedSelections.includes(option)) {
-        // Deselect the option
-        updatedSelections = updatedSelections.filter(item => item !== option);
-      } else {
-        // Select the option
-        updatedSelections.push(option);
+        newSelectedValues = prev.selectedValues.includes(option)
+          ? prev.selectedValues.filter(v => v !== option && v !== "All")
+          : [...prev.selectedValues.filter(v => v !== "All"), option];
+        
+        if (newSelectedValues.length === prev.options.length - 1) {
+          newSelectedValues = [...prev.options];
+        }
       }
       
-      // If all individual options are selected, also select "All"
-      if (updatedSelections.length === showFilterPopup.options.length - 1) {
-        updatedSelections.push("All");
-      }
-      
-      setShowFilterPopup(prev => ({
+      return {
         ...prev,
-        selectedValues: updatedSelections
-      }));
-    }
+        selectedValues: newSelectedValues
+      };
+    });
   };
 
   const applyFilterChanges = () => {
-    const newFilters = {
-      ...filters,
-      [showFilterPopup.type]: showFilterPopup.selectedValues
-    };
-    setFilters(newFilters);
+    const selectedValues = showFilterPopup.selectedValues.filter(v => v !== "All");
+    
+    setFilters(prev => ({
+      ...prev,
+      [showFilterPopup.type]: selectedValues
+    }));
+    
     setShowFilterPopup({ show: false, type: null, options: [], selectedValues: [] });
-    applyFilters(newFilters);
     setCurrentPage(1);
   };
 
@@ -313,86 +243,6 @@ const ConsolidatedReports = () => {
       ...prev,
       selectedValues: []
     }));
-  };
-
-  const applyFilters = (filterValues) => {
-    try {
-      let filtered = [...tableData];
-      
-      // Apply filters for each filter type
-      Object.keys(filterValues).forEach((filterKey) => {
-        const selectedValues = filterValues[filterKey];
-        
-        // Skip filtering if no values are selected or "All" is selected
-        if (
-          !selectedValues || 
-          selectedValues.length === 0 || 
-          (selectedValues.includes("All") && selectedValues.length === getFilterOptions(filterKey).length)
-        ) {
-          return;
-        }
-        
-        // Filter by selected values (excluding "All")
-        const filterValuesList = selectedValues.filter(val => val !== "All");
-        if (filterValuesList.length > 0) {
-          filtered = filtered.filter(item => 
-            filterValuesList.includes(item[filterKey])
-          );
-        }
-      });
-      
-      // Apply date filtering
-      if (fromDate || toDate) {
-        filtered = filtered.filter((item) => {
-          try {
-            const itemDate = item.DATE ? new Date(item.DATE) : null;
-            if (!itemDate) return false;
-            
-            const itemDateOnly = new Date(
-              itemDate.getFullYear(), 
-              itemDate.getMonth(), 
-              itemDate.getDate()
-            );
-      
-            let isAfterFromDate = true;
-            let isBeforeToDate = true;
-      
-            if (fromDate) {
-              const fromDateTime = new Date(fromDate);
-              const fromDateOnly = new Date(
-                fromDateTime.getFullYear(), 
-                fromDateTime.getMonth(), 
-                fromDateTime.getDate()
-              );
-              isAfterFromDate = itemDateOnly >= fromDateOnly;
-            }
-      
-            if (toDate) {
-              const toDateTime = new Date(toDate);
-              const toDateOnly = new Date(
-                toDateTime.getFullYear(), 
-                toDateTime.getMonth(), 
-                toDateTime.getDate()
-              );
-              isBeforeToDate = itemDateOnly <= toDateOnly;
-            }
-      
-            return isAfterFromDate && isBeforeToDate;
-          } catch (e) {
-            console.error("Error processing date filter:", e);
-            return false;
-          }
-        });
-      }
-      
-      setFilteredData(filtered);
-      // Also update dependent filtered data to match
-      setDependentFilteredData(filtered);
-    } catch (error) {
-      console.error("Error applying filters:", error);
-      setFilteredData([]);
-      setDependentFilteredData([]);
-    }
   };
 
   const handleReset = () => {
@@ -405,9 +255,15 @@ const ConsolidatedReports = () => {
     setToDate("");
     setTableData([]);
     setFilteredData([]);
-    setDependentFilteredData([]);
     setError(null);
     setCurrentPage(1);
+    setShowSummary(false);
+    setSummaryDataAvailable(false);
+    setActiveFilters({});
+  };
+  
+  const toggleSummaryView = () => {
+    setShowSummary(prev => !prev);
   };
 
   const downloadCSV = () => {
@@ -416,7 +272,7 @@ const ConsolidatedReports = () => {
       const rows = filteredData
         .map((item, index) =>
           TABLE_HEADS.map((th) => {
-            if (th.key === "serial_number") {
+            if (th.key === "index") {
               return index + 1;
             } else if (th.key === "created_at") {
               return `"${formatDateTime(item[th.key])}"`;
@@ -440,21 +296,13 @@ const ConsolidatedReports = () => {
   };
 
   const removeFilter = (filterType, value) => {
-    // If it's the only value or "All" is being removed, clear the entire filter
-    let updatedFilterValues;
-    if (value === "All" || filters[filterType].length === 1) {
-      updatedFilterValues = [];
-    } else {
-      updatedFilterValues = filters[filterType].filter(val => val !== value);
-    }
+    const updatedFilterValues = filters[filterType].filter(val => val !== value);
     
-    const newFilters = {
-      ...filters,
+    setFilters(prev => ({
+      ...prev,
       [filterType]: updatedFilterValues
-    };
+    }));
     
-    setFilters(newFilters);
-    applyFilters(newFilters);
     setCurrentPage(1);
   };
 
@@ -464,7 +312,7 @@ const ConsolidatedReports = () => {
       return `Select ${filterType.replace(/_/g, ' ')}`;
     }
     
-    if (filterValues.includes("All")) {
+    if (filterValues.length === showFilterPopup.options.length - 1) {
       return "All Selected";
     }
     
@@ -478,6 +326,17 @@ const ConsolidatedReports = () => {
   const filteredOptions = showFilterPopup.options.filter(option =>
     String(option || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Fetch data when dates or filters change
+  useEffect(() => {
+    if (fromDate || toDate) {
+      const timer = setTimeout(() => {
+        fetchData();
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [fromDate, toDate, filters]);
 
   return (
     <section className="content-area-table">
@@ -507,7 +366,7 @@ const ConsolidatedReports = () => {
               className="download-button" 
               onClick={fetchData}
               disabled={!fromDate && !toDate}
-              style={{ marginTop: "25px",backgroundColor: "green" }}
+              style={{ marginTop: "25px", backgroundColor: "green" }}
             >
               Generate
             </button>
@@ -617,31 +476,189 @@ const ConsolidatedReports = () => {
       )}
 
       <div className="results-section">
-        <div className="results-header">
-          <h4>
-            Results ({filteredData.length} records)
-            {loading && <span className="loading-indicator">Loading...</span>}
-          </h4>
-          <div className="results-controls">
-            <div className="rows-per-page">
-              <label>Rows per page:</label>
-              <select 
-                value={rowsPerPage} 
-                onChange={(e) => {
-                  setRowsPerPage(Number(e.target.value));
-                  setCurrentPage(1);
-                }}
-              >
-                <option value="10">10</option>
-                <option value="25">25</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-              </select>
+        {showSummary && (
+          <div className="summary-section">
+            <h4>Summary Report</h4>
+            <div className="summary-content">
+              <div className="summary-chart">
+                <Doughnut 
+                  data={{
+                    labels: [
+                      'Sewing Hours', 
+                      'Idle Hours', 
+                      'Meeting Hours', 
+                      'No Feeding Hours', 
+                      'Maintenance Hours'
+                    ],
+                    datasets: [{
+                      data: [
+                        summaryData.sewingHours || 0, 
+                        summaryData.idleHours || 0, 
+                        summaryData.meetingHours || 0, 
+                        summaryData.noFeedingHours || 0, 
+                        summaryData.maintenanceHours || 0
+                      ],
+                      backgroundColor: [
+                        '#3E3561', // Sewing Hours
+                        '#F8A723', // Idle Hours
+                        '#E74C3C', // Meeting Hours
+                        '#8E44AD', // No Feeding Hours
+                        '#118374'  // Maintenance Hours
+                      ],
+                      borderColor: [
+                        '#3E3561',
+                        '#F8A723',
+                        '#E74C3C',
+                        '#8E44AD',
+                        '#118374'
+                      ],
+                      borderWidth: 1,
+                    }]
+                  }}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                      legend: {
+                        display: false
+                      },
+                      tooltip: {
+                        callbacks: {
+                          label: function(context) {
+                            const value = context.raw || 0;
+                            return `${context.label}: ${value.toFixed(2)} Hrs`;
+                          }
+                        }
+                      }
+                    },
+                    cutout: '60%'
+                  }}
+                />
+              </div>
+              <div className="total-hours" style={{ textAlign: 'center', marginTop: '10px', marginBottom: '15px' }}>
+                <strong>Total Hours: {(summaryData.totalHours || 0).toFixed(2)} Hrs</strong>
+              </div>
+              <div className="hour-breakdown">
+                <div className="hour-box">
+                  <span className="dot production"></span>
+                  <p>{(summaryData.sewingHours || 0).toFixed(2)} Hrs: Sewing Hours</p>
+                </div>
+                <div className="hour-box">
+                  <span className="dot idle"></span>
+                  <p>{(summaryData.idleHours || 0).toFixed(2)} Hrs: Idle Hours</p>
+                </div>
+                <div className="hour-box">
+                  <span className="dot meeting"></span>
+                  <p>{(summaryData.meetingHours || 0).toFixed(2)} Hrs: Meeting Hours</p>
+                </div>
+                <div className="hour-box">
+                  <span className="dot no-feeding"></span>
+                  <p>{(summaryData.noFeedingHours || 0).toFixed(2)} Hrs: No Feeding Hours</p>
+                </div>
+                <div className="hour-box">
+                  <span className="dot maintenance"></span>
+                  <p>{(summaryData.maintenanceHours || 0).toFixed(2)} Hrs: Maintenance Hours</p>
+                </div>
+              </div>
             </div>
+            
+            <div className="summary-table-wrapper">
+              <table className="summary-table">
+                <thead>
+                  <tr>
+                    <th>Date Range</th>
+                    <th>Operator ID</th>
+                    <th>Operator Name</th>
+                    <th>Machine ID</th>
+                    <th>Line Number</th>
+                    <th>Total Hours</th>
+                    <th>Sewing Hours</th>
+                    <th>Idle Hours</th>
+                    <th>Meeting Hours</th>
+                    <th>No Feeding Hours</th>
+                    <th>Maintenance Hours</th>
+                    <th>Productive Time in %</th>
+                    <th>NPT in %</th>
+                    <th>Sewing Speed</th>
+                    <th>Stitch Count</th>
+                    <th>Needle Runtime</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>{activeFilters.from_date || "Start"} to {activeFilters.to_date || "End"}</td>
+                    <td>{activeFilters.OPERATOR_ID || "All"}</td>
+                    <td>{activeFilters.operator_name || "All"}</td>
+                    <td>{activeFilters.machine_id || "All"}</td>
+                    <td>{activeFilters.line_number || "All"}</td>
+                    <td>{(summaryData.totalHours || 0).toFixed(2)}</td>
+                    <td>{(summaryData.sewingHours || 0).toFixed(2)}</td>
+                    <td>{(summaryData.idleHours || 0).toFixed(2)}</td>
+                    <td>{(summaryData.meetingHours || 0).toFixed(2)}</td>
+                    <td>{(summaryData.noFeedingHours || 0).toFixed(2)}</td>
+                    <td>{(summaryData.maintenanceHours || 0).toFixed(2)}</td>
+                    <td>{(summaryData.productiveTimePercent || 0).toFixed(2)}%</td>
+                    <td>{(summaryData.nptPercent || 0).toFixed(2)}%</td>
+                    <td>{(summaryData.sewingSpeed || 0).toFixed(2)}</td>
+                    <td>{(summaryData.stitchCount || 0).toFixed(2)}</td>
+                    <td>{(summaryData.needleRuntime || 0).toFixed(2)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        <div className="results-header">
+          <div className="results-header-left">
+            <h4>
+              {showSummary ? 
+                "Summary Dashboard" : 
+                `Results (${filteredData.length} records)`
+              }
+              {loading && <span className="loading-indicator">Loading...</span>}
+            </h4>
+            
+            {summaryDataAvailable && (
+              <button 
+                className={`view-toggle-button ${showSummary ? 'active' : 'green-button'}`}
+                onClick={toggleSummaryView} 
+                style={{ marginLeft: "20px" }}
+                title={showSummary ? "Switch to table view" : "Switch to summary view"}
+              >
+                {showSummary ? <><FaTimes /> Return to Table View</> : <><FaChartBar /> View Summary Dashboard</>}
+              </button>
+            )}
+          </div>
+          
+          <div className="results-controls">
+            {!showSummary && (
+              <div className="rows-per-page">
+                <label>Rows per page:</label>
+                <select 
+                  value={rowsPerPage} 
+                  onChange={(e) => {
+                    setRowsPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                >
+                  <option value="10">10</option>
+                  <option value="25">25</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                </select>
+              </div>
+            )}
+            {showSummary && (
+              <div className="view-mode-indicator">
+                <span>Currently in summary view</span>
+              </div>
+            )}
             <button 
               onClick={downloadCSV} 
               disabled={!filteredData.length}
-              className="download-button" style={{ marginTop: "25px" }}
+              className="download-button" 
+              style={{ marginTop: "25px" }}
             >
               <FaDownload /> Download CSV
             </button>
@@ -706,57 +723,58 @@ const ConsolidatedReports = () => {
               <button onClick={() => {
                 setFromDate("");
                 setToDate("");
-                applyFilters(filters);
                 setCurrentPage(1);
               }}>×</button>
             </div>
           )}
         </div>
 
-        <div className="table-container">
-          <div className="table-wrapper">
-            <table>
-              <thead>
-                <tr>
-                  {TABLE_HEADS.map((th, index) => (
-                    <th key={index}>{th.label}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
+        {!showSummary && (
+          <div className="table-container">
+            <div className="table-wrapper">
+              <table>
+                <thead>
                   <tr>
-                    <td colSpan={TABLE_HEADS.length} className="loading-row">
-                      Loading data...
-                    </td>
+                    {TABLE_HEADS.map((th, index) => (
+                      <th key={index}>{th.label}</th>
+                    ))}
                   </tr>
-                ) : filteredData.length > 0 ? (
-                  currentRows.map((dataItem, index) => (
-                    <tr key={indexOfFirstRow + index}>
-                      {TABLE_HEADS.map((th, thIndex) => (
-                        <td key={thIndex}>
-                          {th.key === "serial_number"
-                            ? indexOfFirstRow + index + 1
-                            : th.key === "created_at"
-                            ? formatDateTime(dataItem[th.key])
-                            : dataItem[th.key] || "-"}
-                        </td>
-                      ))}
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr>
+                      <td colSpan={TABLE_HEADS.length} className="loading-row">
+                        Loading data...
+                      </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={TABLE_HEADS.length} className="no-data">
-                      No records found
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  ) : filteredData.length > 0 ? (
+                    currentRows.map((dataItem, index) => (
+                      <tr key={indexOfFirstRow + index}>
+                        {TABLE_HEADS.map((th, thIndex) => (
+                          <td key={thIndex}>
+                            {th.key === "index"
+                              ? indexOfFirstRow + index + 1
+                              : th.key === "created_at"
+                              ? formatDateTime(dataItem[th.key])
+                              : dataItem[th.key] || "-"}
+                          </td>
+                        ))}
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={TABLE_HEADS.length} className="no-data">
+                        No records found
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        )}
 
-        {filteredData.length > 0 && !loading && (
+        {filteredData.length > 0 && !loading && !showSummary && (
           <div className="pagination-controls">
             <div className="page-info">
               Showing {indexOfFirstRow + 1} to {Math.min(indexOfLastRow, totalRows)} of {totalRows} entries

@@ -43,7 +43,7 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
       to_date: toDate || ''
     });
 
-    fetch(`http://127.0.0.1:8000/api/operator_report_by_name/${operator_name}/?${params}`)
+    fetch(`http://localhost:8000/api/operator_report_by_name/${operator_name}/?${params}`)
       .then((response) => response.json())
       .then((data) => {
         const allTableData = data.tableData;
@@ -447,7 +447,6 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
                   outerRadius={100}
                   paddingAngle={5}
                   dataKey="value"
-                  label={({ value }) => value > 0 ? value.toFixed(1) : null}
                 >
                   {chartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />

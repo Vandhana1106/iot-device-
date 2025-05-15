@@ -1,4 +1,5 @@
 // Enhanced styles for AreaTable component
+@import './summary-styles.scss';
 
 .content-area-table {
   background: #f8f9fa;
@@ -1301,33 +1302,23 @@ button1 {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 15px;
-
-      h4 {
-        margin: 0;
-        font-size: 1.2rem;
-        color: #333;
-      }
-
-      .download-button {
-        padding: 8px 16px;
-        background-color: #4CAF50;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 14px;
+      margin-bottom: 20px;
+      
+      .results-header-left {
         display: flex;
         align-items: center;
-        gap: 5px;
-
-        &:hover {
-          background-color: #45a049;
+        
+        h4 {
+          margin: 0;
+          font-size: 1.1rem;
+          font-weight: 600;
         }
-
-        &:disabled {
-          background-color: #cccccc;
-          cursor: not-allowed;
+        
+        .view-toggle-button {
+          height: 38px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
         }
       }
     }
