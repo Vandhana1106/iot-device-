@@ -30,6 +30,13 @@ const Sidebar = () => {
   const navigate = useNavigate();  
 
   const [isReportsOpen, setIsReportsOpen] = useState(false); // Toggle Reports submenu
+  const [userRole, setUserRole] = useState(''); // State to store user role
+
+  // Check user role on component mount
+  useEffect(() => {
+    const role = Cookies.get('user_role') || '';
+    setUserRole(role);
+  }, []);
 
   const handleClickOutside = (event) => {
     if (
@@ -52,7 +59,32 @@ const Sidebar = () => {
 
   const handleLogout = () => {
     Cookies.remove("jwt");
+    Cookies.remove("user_role");
     navigate("/");
+  };
+
+  // Function to render the Consolidated Reports link based on user role
+  const renderConsolidatedReportsLink = () => {
+    // If user is admin, show the ConsolidatedReports link
+    if (userRole === 'admin') {
+      return (
+        <li className="menu-item">
+          <Link to="/ConsolidatedReports" className={`menu-link ${isActive("/ConsolidatedReports")}`}>
+            <span className="menu-link-text">Consolidated Reports</span>
+          </Link>
+        </li>
+      );
+    } 
+    // For non-admin users, show the AReport link but with Consolidated Reports text
+    else {
+      return (
+        <li className="menu-item">
+          <Link to="/AReport" className={`menu-link ${isActive("/AReport")}`}>
+            <span className="menu-link-text">Consolidated Reports</span>
+          </Link>
+        </li>
+      );
+    }
   };
 
   return (
@@ -94,18 +126,16 @@ const Sidebar = () => {
 
               {isReportsOpen && (
                 <ul className="submenu">
-                  {/* <li className="menu-item">
-                    <Link to="/reports" className={`menu-link ${isActive("/reports")}`}>
-                      <span className="menu-link-text">Reports</span>
-                    </Link>
-                  </li> */}
                   <li className="menu-item">
-                    <Link to="/Op" className={`menu-link ${isActive("/Op")}`}>
+                    <Link 
+                      to={userRole === 'admin' ? "/Op" : "/operatorA"} 
+                      className={`menu-link ${isActive("/Op") || isActive("/operatorA")}`}
+                    >
                       <span className="menu-link-text">Operator Report</span>
                     </Link>
                   </li>
                   <li className="menu-item">
-                    <Link to="/reports" className={`menu-link ${isActive("/reports")}`}>
+                    <Link to={userRole === 'admin' ? "/reports" : "/machine-report"} className={`menu-link ${isActive("/reports") || isActive("/machine-report")}`}>
                       <span className="menu-link-text">Machine ID Report</span>
                     </Link>
                   </li>
@@ -114,11 +144,8 @@ const Sidebar = () => {
                       <span className="menu-link-text">Line Report</span>
                     </Link>
                   </li>
-                  <li className="menu-item">
-                    <Link to="/ConsolidatedReports" className={`menu-link ${isActive("/ConsolidatedReports")}`}>
-                      <span className="menu-link-text">Consolidated Reports</span>
-                    </Link>
-                  </li>
+                  {/* Dynamically render the Consolidated Reports link based on user role */}
+                  {renderConsolidatedReportsLink()}
                 </ul>
               )}
             </li>

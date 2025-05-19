@@ -21,6 +21,8 @@ import LineReport from "./components/Line_Report/LineReport";
 import MachineReport from "./components/Operator_Report/MachineReport";
 import AReport from "./components/dashboard/areaTable/AReport";
 import ConsolidatedReports from "./components/dashboard/areaTable/ConsolidatedReports";
+import OverallMachineA from "./components/AFL/Machine/OverallMachineA";
+import OperatoroverallA from "./components/AFL/Machine/OperatoroverallA";
 
 const ProtectedRoute = ({ component: Component, allowedRoles = ['admin', 'user'] }) => {
   const hasToken = Cookies.get('jwt');
@@ -62,7 +64,9 @@ function App() {
           <Route element={<BaseLayout />}>
             <Route path="/dashboard" element={<ProtectedRoute component={Dashboard} allowedRoles={['admin']} />} />
             <Route path="/reports" element={<ProtectedRoute component={Reports} allowedRoles={['admin']} />} />
+            <Route path="/machine-report" element={<ProtectedRoute component={OverallMachineA} allowedRoles={['admin', 'user']} />} />
             <Route path="/op" element={<ProtectedRoute component={Operatoroverall} allowedRoles={['admin']} />} />
+            <Route path="/operatorA" element={<ProtectedRoute component={OperatoroverallA} allowedRoles={['admin', 'user']} />} />
             <Route path="/lineoverall" element={<ProtectedRoute component={Lineoverall} allowedRoles={['admin']} />} />
             <Route path="/ConsolidatedReports" element={<ProtectedRoute component={ConsolidatedReports} allowedRoles={['admin']} />} />
             <Route path="/AReport" element={<ProtectedRoute component={AReport} allowedRoles={['admin', 'user']} />} />
