@@ -32,8 +32,8 @@ const DETAILED_TABLE_HEADS = [
   { label: "Stitch Count", key: "STITCH_COUNT" },
   { label: "Needle Runtime", key: "NEEDLE_RUNTIME" },
   { label: "Needle Stop Time", key: "NEEDLE_STOPTIME" },
-  { label: "Duration", key: "DEVICE_ID" },
-  { label: "SPM", key: "RESERVE" },
+  { label: "Operation Count", key: "DEVICE_ID" },
+  { label: "Skip Count", key: "RESERVE" },
   { label: "TX Log ID", key: "Tx_LOGID" },
   { label: "STR Log ID", key: "Str_LOGID" },
   { label: "Created At", key: "created_at" }

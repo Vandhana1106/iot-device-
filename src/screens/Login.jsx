@@ -1,137 +1,4 @@
-// import React, { useState, useEffect } from 'react';
-// import { Button, Form, Input } from 'antd';
-// import { ToastContainer, toast } from 'react-toastify';
-// import 'react-toastify/dist/ReactToastify.css';
-// import { useNavigate } from 'react-router-dom';
-// import Cookies from 'js-cookie';
 
-// import './Login.css';
-
-// const Login = () => {
-//     const [error, setError] = useState('');
-//     const [timeoutId, setTimeoutId] = useState(null);
-//     const navigate = useNavigate();
-
-//     useEffect(() => {
-//         // Check for session ID changes
-//         const sessionID = Cookies.get('session_id');
-//         if (sessionID && sessionID !== getSessionIDFromServer()) {
-//             handleLogout();
-//         }
-
-//         // Set up event listeners for user activity
-//         const events = ['mousemove', 'keydown', 'click'];
-//         events.forEach(event => window.addEventListener(event, resetTimeout));
-
-//         // Set initial timeout
-//         resetTimeout();
-
-//         // Cleanup event listeners on unmount
-//         return () => {
-//             events.forEach(event => window.removeEventListener(event, resetTimeout));
-//             clearTimeout(timeoutId);
-//         };
-//     }, []);
-
-//     const getSessionIDFromServer = () => {
-//         // Implement a function to get the current session ID from the server
-//         // This is a placeholder function
-//         return 'current_session_id_from_server';
-//     };
-
-//     const handleLogout = () => {
-//         Cookies.remove('jwt');
-//         Cookies.remove('session_id');
-//         navigate('/');
-//         toast.error('Session expired. Please log in again.');
-//     };
-
-//     const resetTimeout = () => {
-//         if (timeoutId) {
-//             clearTimeout(timeoutId);
-//         }
-//         const id = setTimeout(handleLogout, 15 * 60 * 1000); // 15 minutes
-//         setTimeoutId(id);
-//     };
-
-//     const onFinish = async (values) => {
-//         console.log('Username:', values.username);
-//         console.log('Password:', values.password);
-    
-//         try {
-//             const response = await fetch("http://127.0.0.1:8000/api/user_login/", {
-//                 method: "POST",
-//                 headers: {
-//                     "Content-Type": "application/json",
-//                 },
-//                 body: JSON.stringify(values),
-//             });
-    
-//             if (!response.ok) {
-//                 throw new Error("Authentication failed");
-//             }
-    
-//             const data = await response.json();
-//             Cookies.set('jwt', data.token);
-//             Cookies.set('session_id', data.session_id); // Adjust based on the actual response format
-//             navigate("/dashboard");
-//         } catch (error) {
-//             console.error('Error during login:', error.message);
-//             toast.error('Incorrect username or password');
-//         }
-//     };
-
-//     const onFinishFailed = (errorInfo) => {
-//         console.log('Failed:', errorInfo);
-//     };
-
-//     return (
-//         <>
-//             <div className="login-container">
-//                 <div className="login-form">
-//                     <Form
-//                         name="basic"
-//                         layout="vertical"
-//                         initialValues={{ remember: true }}
-//                         onFinish={onFinish}
-//                         onFinishFailed={onFinishFailed}
-//                         autoComplete="off"
-//                     >
-//                         <Form.Item
-//                             label="Username"
-//                             name="username"
-//                             rules={[{ required: true, message: 'Please input your username!' }]}
-//                         >
-//                             <Input />
-//                         </Form.Item>
-
-//                         <Form.Item
-//                             label="Password"
-//                             name="password"
-//                             rules={[{ required: true, message: 'Please input your password!' }]}
-//                         >
-//                             <Input.Password />
-//                         </Form.Item>
-
-//                         {error && <p className="error-message">{error}</p>}
-
-//                         <Form.Item>
-//                             <Button type="primary" htmlType="submit" block>
-//                                 Log In
-//                             </Button>
-//                         </Form.Item>
-//                     </Form>
-//                 </div>
-//             </div>
-//             <footer className="login-footer">
-//                 <p>@ <a href="https://pinesphere.com/">Pinesphere</a>. All rights reserved.</p>
-//             </footer>
-//             <ToastContainer />
-//         </>
-//     );
-// };
-
-// export default Login;
 
 
 import React, { useState } from 'react';
@@ -140,24 +7,50 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useNavigate } from 'react-router-dom';
 import Cookies from 'js-cookie';
-
 import './Login.css';
 
 const Login = () => {
     const [error, setError] = useState('');
     const navigate = useNavigate();
-
-    const onFinish = async (values) => {
-        console.log('Username:', values.username);
-        console.log('Password:', values.password);
     
+    const onFinish = async (values) => {
         try {
-            // Show loading toast
             toast.loading('Logging in...', {
                 position: "top-right",
                 toastId: 'loginProgress'
             });
             
+            // Check for admin credentials
+            if (values.username === 'admin' && values.password === 'admin') {
+                Cookies.set('jwt', 'admin-token');
+                Cookies.set('user_role', 'admin');
+                
+                toast.dismiss('loginProgress');
+                toast.success('Admin login successful! Redirecting...', {
+                    position: "top-right",
+                    autoClose: 2000,
+                });
+                
+                setTimeout(() => navigate("/dashboard"), 2000);
+                return;
+            }
+            
+            // Check for user credentials
+            if (values.username === 'User' && values.password === 'user@123') {
+                Cookies.set('jwt', 'user-token');
+                Cookies.set('user_role', 'user');
+                
+                toast.dismiss('loginProgress');
+                toast.success('User login successful! Redirecting...', {
+                    position: "top-right",
+                    autoClose: 2000,
+                });
+                
+                setTimeout(() => navigate("/AReport"), 2000);
+                return;
+            }
+            
+            // API login for other users
             const response = await fetch("http://127.0.0.1:8000/api/user_login/", {
                 method: "POST",
                 headers: {
@@ -166,36 +59,27 @@ const Login = () => {
                 body: JSON.stringify(values),
             });
     
-            if (!response.ok) {
-                throw new Error("Authentication failed");
-            }
+            if (!response.ok) throw new Error("Authentication failed");
     
             const data = await response.json();
             Cookies.set('jwt', data.token);
+            Cookies.set('user_role', data.role || 'admin'); // Default to admin if role not specified
             
-            // Dismiss loading toast and show success
             toast.dismiss('loginProgress');
             toast.success('Login successful! Redirecting...', {
                 position: "top-right",
                 autoClose: 2000,
-                hideProgressBar: false,
-                closeOnClick: true,
-                pauseOnHover: true,
-                draggable: true,
             });
             
-            // Navigate after showing the success message
-            setTimeout(() => navigate("/dashboard"), 2000);
+            setTimeout(() => navigate(
+                Cookies.get('user_role') === 'user' ? '/AReport' : '/dashboard'
+            ), 2000);
         } catch (error) {
             console.error('Error during login:', error.message);
             toast.dismiss('loginProgress');
             toast.error('Incorrect username or password', {
                 position: "top-right",
                 autoClose: 5000,
-                hideProgressBar: false,
-                closeOnClick: true,
-                pauseOnHover: true,
-                draggable: true,
             });
         }
     };
@@ -205,10 +89,6 @@ const Login = () => {
         toast.warn('Please fill in all required fields correctly', {
             position: "top-right",
             autoClose: 5000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
         });
     };
 
@@ -259,3 +139,57 @@ const Login = () => {
 };
 
 export default Login;
+
+
+
+// import React from 'react';
+// import { Button, Form, Input } from 'antd';
+// import { toast } from 'react-toastify';
+// import { useNavigate } from 'react-router-dom';
+// import Cookies from 'js-cookie';
+// import './Login.css';
+
+// const Login = () => {
+//   const navigate = useNavigate();
+  
+//   const onFinish = (values) => {
+//     if (values.username === 'User' && values.password === 'user@123') {
+//       Cookies.set('jwt', 'user-token');
+//       Cookies.set('user_role', 'user');
+//       navigate("/AReport");
+//       return;
+//     }
+    
+//     if (values.username === 'admin' && values.password === 'admin') {
+//       Cookies.set('jwt', 'admin-token');
+//       Cookies.set('user_role', 'admin');
+//       navigate("/dashboard");
+//       return;
+//     }
+    
+//     toast.error('Invalid credentials');
+//   };
+
+//   return (
+//     <div className="login-container">
+//       <div className="login-form">
+//         <Form onFinish={onFinish} layout="vertical">
+//           <Form.Item name="username" rules={[{ required: true }]}>
+//             <Input placeholder="Username" />
+//           </Form.Item>
+//           <Form.Item name="password" rules={[{ required: true }]}>
+//             <Input.Password placeholder="Password" />
+//           </Form.Item>
+//           <Button type="primary" htmlType="submit" block>
+//             Log In
+//           </Button>
+//         </Form>
+//       </div>
+//       <footer className="login-footer">
+//         <p>@ <a href="https://pinesphere.com/">Pinesphere</a>. All rights reserved.</p>
+//       </footer>
+//     </div>
+//   );
+// };
+
+// export default Login;
