@@ -1,6 +1,4 @@
 
-
-
 import React, { useState } from 'react';
 import { Button, Form, Input } from 'antd';
 import { ToastContainer, toast } from 'react-toastify';
@@ -142,54 +140,3 @@ export default Login;
 
 
 
-// import React from 'react';
-// import { Button, Form, Input } from 'antd';
-// import { toast } from 'react-toastify';
-// import { useNavigate } from 'react-router-dom';
-// import Cookies from 'js-cookie';
-// import './Login.css';
-
-// const Login = () => {
-//   const navigate = useNavigate();
-  
-//   const onFinish = (values) => {
-//     if (values.username === 'User' && values.password === 'user@123') {
-//       Cookies.set('jwt', 'user-token');
-//       Cookies.set('user_role', 'user');
-//       navigate("/AReport");
-//       return;
-//     }
-    
-//     if (values.username === 'admin' && values.password === 'admin') {
-//       Cookies.set('jwt', 'admin-token');
-//       Cookies.set('user_role', 'admin');
-//       navigate("/dashboard");
-//       return;
-//     }
-    
-//     toast.error('Invalid credentials');
-//   };
-
-//   return (
-//     <div className="login-container">
-//       <div className="login-form">
-//         <Form onFinish={onFinish} layout="vertical">
-//           <Form.Item name="username" rules={[{ required: true }]}>
-//             <Input placeholder="Username" />
-//           </Form.Item>
-//           <Form.Item name="password" rules={[{ required: true }]}>
-//             <Input.Password placeholder="Password" />
-//           </Form.Item>
-//           <Button type="primary" htmlType="submit" block>
-//             Log In
-//           </Button>
-//         </Form>
-//       </div>
-//       <footer className="login-footer">
-//         <p>@ <a href="https://pinesphere.com/">Pinesphere</a>. All rights reserved.</p>
-//       </footer>
-//     </div>
-//   );
-// };
-
-// export default Login;

@@ -14,6 +14,12 @@ module.exports = function(app) {
     createProxyMiddleware({
       target: 'https://oceanatlantic.pinesphere.co.in',
       changeOrigin: true,
+      secure: false,
+      withCredentials: true,
+      onProxyRes: function(proxyRes, req, res) {
+        // Add the Access-Control-Allow-Credentials header if it's missing
+        proxyRes.headers['Access-Control-Allow-Credentials'] = 'true';
+      }
     })
   );
 };

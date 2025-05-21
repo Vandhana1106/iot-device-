@@ -90,6 +90,7 @@ const AReport = () => {
   const validateDateFormat = (dateString) => {
     if (!dateString) return "";
     
+    // Check if the format is already correct
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
       return dateString;
     }
@@ -101,6 +102,7 @@ const AReport = () => {
         return "";
       }
       
+      // Format to YYYY-MM-DD
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');
@@ -111,38 +113,7 @@ const AReport = () => {
       return "";
     }
   };
-
-  // Apply filters to table data
-  useEffect(() => {
-    if (tableData.length > 0) {
-      let result = [...tableData];
-      
-      // Apply machine ID filter
-      if (filters.MACHINE_ID.length > 0) {
-        result = result.filter(item => 
-          filters.MACHINE_ID.includes(item.MACHINE_ID)
-        );
-      }
-      
-      // Apply line number filter
-      if (filters.LINE_NUMB.length > 0) {
-        result = result.filter(item => 
-          filters.LINE_NUMB.includes(item.LINE_NUMB)
-        );
-      }
-      
-      // Apply operator name filter
-      if (filters.operator_name.length > 0) {
-        result = result.filter(item => 
-          filters.operator_name.includes(item.operator_name)
-        );
-      }
-      
-      setFilteredData(result);
-      setCurrentPage(1);
-    }
-  }, [filters, tableData]);
-
+  
   const fetchData = async () => {
     if (!fromDate && !toDate) {
       setError("Please select at least one date");
@@ -167,7 +138,7 @@ const AReport = () => {
       
       // Add timeout to the fetch request
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
       
       try {
         const response = await fetch(requestUrl, { 
@@ -212,8 +183,9 @@ const AReport = () => {
               });
               
               setTableData(processedData);
-              setFilteredData(processedData);
-              setSummaryDataAvailable(false);
+              // We don't need to set filteredData here as the filter useEffect will handle it
+              
+              setSummaryDataAvailable(false); // Fallback API might not provide summary data
               
               setActiveFilters({
                 from_date: fromDate,
@@ -223,7 +195,7 @@ const AReport = () => {
                 operator_name: filters.operator_name.join(", ") || "All"
               });
               
-              return;
+              return; // Exit after successful fallback
             }
           }
           
@@ -241,7 +213,7 @@ const AReport = () => {
           });
           
           setTableData(processedData);
-          setFilteredData(processedData);
+          // We don't need to set filteredData here as the filter useEffect will handle it
           
           // Set summary data
           if (data.summary) {
@@ -276,9 +248,11 @@ const AReport = () => {
       } catch (apiError) {
         console.error("API Error:", apiError);
         
+        // Check if the error is due to timeout or network issue
         if (apiError.name === 'AbortError') {
           setError("API request timed out. Please try again later.");
         }
+        // Handle division by zero error specifically
         else if (apiError.message.includes("division by zero") || 
             (typeof apiError === 'object' && apiError.toString().includes("division by zero"))) {
           setError("Server calculation error. This may happen when there's no needle runtime data for the selected period.");
@@ -295,11 +269,13 @@ const AReport = () => {
       setLoading(false);
     }
   };
-
+  
   const handleTryAlternativeDate = () => {
+    // Try previous day as a fallback
     try {
       const selectedDate = new Date(fromDate);
       if (isNaN(selectedDate.getTime())) {
+        // If date is invalid, use today's date minus one day
         const today = new Date();
         today.setDate(today.getDate() - 1);
         
@@ -313,6 +289,7 @@ const AReport = () => {
         return;
       }
       
+      // Otherwise use previous day
       selectedDate.setDate(selectedDate.getDate() - 1);
       
       const year = selectedDate.getFullYear();
@@ -324,6 +301,7 @@ const AReport = () => {
       setToDate(newDate);
     } catch (error) {
       console.error("Error setting fallback date:", error);
+      // Use a safe default date (a month ago)
       const today = new Date();
       today.setMonth(today.getMonth() - 1);
       
@@ -343,6 +321,40 @@ const AReport = () => {
   const indexOfLastRow = currentPage * rowsPerPage;
   const indexOfFirstRow = indexOfLastRow - rowsPerPage;
   const currentRows = filteredData.slice(indexOfFirstRow, indexOfLastRow);
+
+  // Apply filters effect - this is a key addition
+  useEffect(() => {
+    if (tableData.length > 0) {
+      let result = [...tableData];
+      
+      // Apply machine ID filter
+      if (filters.MACHINE_ID.length > 0) {
+        result = result.filter(item => 
+          filters.MACHINE_ID.includes(item.MACHINE_ID)
+        );
+      }
+      
+      // Apply line number filter
+      if (filters.LINE_NUMB.length > 0) {
+        result = result.filter(item => 
+          filters.LINE_NUMB.includes(item.LINE_NUMB)
+        );
+      }
+      
+      // Apply operator name filter
+      if (filters.operator_name.length > 0) {
+        result = result.filter(item => 
+          filters.operator_name.includes(item.operator_name)
+        );
+      }
+      
+      setFilteredData(result);
+      console.log("Filters applied. Filtered data count:", result.length);
+      
+      // Reset to first page when filters change
+      setCurrentPage(1);
+    }
+  }, [filters, tableData]);
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
   const goToFirstPage = () => paginate(1);
@@ -365,38 +377,54 @@ const AReport = () => {
     return ["All", ...options];
   };
 
+  // Improved openFilterPopup function
   const openFilterPopup = (type) => {
     const options = getFilterOptions(type);
+    const currentValues = filters[type] || [];
+    
+    // If all values are selected (except "All"), we should add "All" to the selected values
+    const allOptionsExceptAll = options.filter(opt => opt !== "All");
+    const selectedValues = currentValues.length === allOptionsExceptAll.length - 1 
+      ? ["All", ...currentValues] 
+      : currentValues;
     
     setShowFilterPopup({
       show: true,
       type,
       options,
-      selectedValues: filters[type] || []
+      selectedValues
     });
     setSearchTerm("");
   };
 
+  // Improved toggleOptionSelection function
   const toggleOptionSelection = (option) => {
     setShowFilterPopup(prev => {
       let newSelectedValues;
       
       if (option === "All") {
+        // Toggle "All" selection
         if (prev.selectedValues.includes("All")) {
+          // If "All" was selected, clear all
           newSelectedValues = [];
         } else {
-          newSelectedValues = [...prev.options.filter(opt => opt !== "All")];
+          // If "All" wasn't selected, select all options except "All"
+          newSelectedValues = prev.options.filter(opt => opt !== "All");
         }
       } else {
+        // For regular options
         if (prev.selectedValues.includes(option)) {
+          // If already selected, remove it and "All" if present
           newSelectedValues = prev.selectedValues.filter(v => v !== option && v !== "All");
         } else {
+          // If not selected, add it (but not "All")
           newSelectedValues = [...prev.selectedValues.filter(v => v !== "All"), option];
-        }
-        
-        const allOptionsExceptAll = prev.options.filter(opt => opt !== "All");
-        if (newSelectedValues.length === allOptionsExceptAll.length) {
-          newSelectedValues = ["All", ...newSelectedValues];
+          
+          // If all options except "All" are now selected, select "All" too
+          const allOptionsExceptAll = prev.options.filter(opt => opt !== "All");
+          if (newSelectedValues.length === allOptionsExceptAll.length) {
+            newSelectedValues = ["All", ...newSelectedValues];
+          }
         }
       }
       
@@ -407,20 +435,25 @@ const AReport = () => {
     });
   };
 
+  // Improved applyFilterChanges function
   const applyFilterChanges = () => {
-    const { type, selectedValues } = showFilterPopup;
+    // Get the filter type and selected values
+    const { type, options, selectedValues } = showFilterPopup;
     
+    // If "All" is selected, we need to include all options except "All"
     const valuesToApply = selectedValues.includes("All")
-      ? showFilterPopup.options.filter(opt => opt !== "All")
+      ? options.filter(opt => opt !== "All")
       : selectedValues;
+    
+    console.log(`Applying ${type} filter with values:`, valuesToApply);
     
     setFilters(prev => ({
       ...prev,
       [type]: valuesToApply
     }));
     
+    // Close the filter popup
     setShowFilterPopup({ show: false, type: null, options: [], selectedValues: [] });
-    setCurrentPage(1);
   };
 
   const clearFilterChanges = () => {
@@ -446,7 +479,7 @@ const AReport = () => {
     setSummaryDataAvailable(false);
     setActiveFilters({});
   };
-
+  
   const toggleSummaryView = () => {
     setShowSummary(prev => !prev);
   };
@@ -487,20 +520,21 @@ const AReport = () => {
       ...prev,
       [filterType]: updatedFilterValues
     }));
-    
-    setCurrentPage(1);
   };
 
+  // Improved getFilterDisplayText function
   const getFilterDisplayText = (filterType) => {
     const filterValues = filters[filterType];
     if (!filterValues || filterValues.length === 0) {
       return `Select ${filterType.replace(/_/g, ' ')}`;
     }
     
+    // Get all possible options for this filter type
     const allOptions = getFilterOptions(filterType);
     const allOptionsExceptAll = allOptions.filter(opt => opt !== "All");
     
-    if (filterValues.includes("All") || filterValues.length === allOptionsExceptAll.length) {
+    // If "All" is selected or all individual options are selected
+    if (filterValues.includes("All") || filterValues.length === allOptionsExceptAll.length - 1) {
       return "All Selected";
     }
     
@@ -514,14 +548,16 @@ const AReport = () => {
   const filteredOptions = showFilterPopup.options.filter(option =>
     String(option || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  // Fetch data when dates change
+  
+  // Fetch data when dates or filters change
   useEffect(() => {
     if (fromDate || toDate) {
+      // Clear any existing timeout to prevent multiple calls
       if (window.fetchDataTimeout) {
         clearTimeout(window.fetchDataTimeout);
       }
       
+      // Set a timeout to only execute after user has stopped typing
       window.fetchDataTimeout = setTimeout(() => {
         fetchData();
       }, 500);
@@ -532,7 +568,7 @@ const AReport = () => {
         }
       };
     }
-  }, [fromDate, toDate]);
+  }, [fromDate, toDate, filters]);
 
   return (
     <section className="content-area-table">
@@ -557,6 +593,7 @@ const AReport = () => {
                 onChange={(e) => setToDate(e.target.value)}
               />
             </div>
+            
             <button 
               className="download-button" 
               onClick={fetchData}
@@ -641,7 +678,7 @@ const AReport = () => {
                     <input 
                       type="checkbox" 
                       checked={showFilterPopup.selectedValues.includes(option)} 
-                      onChange={() => {}}
+                      onChange={() => {}} // Handled by div click
                     />
                     <span>{option === "All" ? "Select All" : String(option)}</span>
                   </div>
@@ -694,11 +731,11 @@ const AReport = () => {
                         summaryData.maintenanceHours || 0
                       ],
                       backgroundColor: [
-                        '#3E3561',
-                        '#F8A723',
-                        '#E74C3C',
-                        '#8E44AD',
-                        '#118374'
+                        '#3E3561', // Sewing Hours
+                        '#F8A723', // Idle Hours
+                        '#E74C3C', // Meeting Hours
+                        '#8E44AD', // No Feeding Hours
+                        '#118374'  // Maintenance Hours
                       ],
                       borderColor: [
                         '#3E3561',
@@ -803,6 +840,7 @@ const AReport = () => {
             </div>
           </div>
         )}
+        
         <div className="results-header">
           <div className="results-header-left">
             <h4>
