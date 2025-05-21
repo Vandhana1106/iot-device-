@@ -7,6 +7,10 @@ const SUMMARY_TABLE_HEADS = [
   { label: "Date", key: "Date" },
   { label: "Machine ID", key: "Machine ID" },
   { label: "Sewing Hours (PT)", key: "Sewing Hours (PT)" },
+  { label: "Sewing Operation Count", key: "Sewing Operation count" },
+  { label: "Sewing Skip Count", key: "Sewing Skip count" },
+  { label: "Rework Operation Count", key: "Rework Operation count" },
+  { label: "Rework Stitch Count", key: "Rework Skip count" },
   { label: "Needle Break Hours", key: "No Feeding Hours" },
   { label: "Rework Hours", key: "Meeting Hours" },
   { label: "Maintenance Hours", key: "Maintenance Hours" },
@@ -14,9 +18,8 @@ const SUMMARY_TABLE_HEADS = [
   { label: "Total Hours", key: "Total Hours" },
   { label: "PT %", key: "Productive Time (PT) %" },
   { label: "NPT %", key: "Non-Productive Time (NPT) %" },
-  { label: "Sewing Speed", key: "Sewing Speed" },
-  { label: "Stitch Count", key: "Stitch Count" },
-  { label: "Needle Runtime", key: "Needle Runtime" }
+  { label: "Operation Count", key: "Stitch Count" },
+  { label: "Skip Count", key: "Needle Runtime" }
 ];
 
 const DETAILED_TABLE_HEADS = [
@@ -29,11 +32,11 @@ const DETAILED_TABLE_HEADS = [
   { label: "End Time", key: "END_TIME" },
   { label: "Mode", key: "MODE" },
   { label: "Mode Description", key: "mode_description" },
-  { label: "Stitch Count", key: "STITCH_COUNT" },
-  { label: "Needle Runtime", key: "NEEDLE_RUNTIME" },
+  { label: "Operation Count", key: "STITCH_COUNT" },
+  { label: "Skip Count", key: "NEEDLE_RUNTIME" },
   { label: "Needle Stop Time", key: "NEEDLE_STOPTIME" },
-  { label: "Operation Count", key: "DEVICE_ID" },
-  { label: "Skip Count", key: "RESERVE" },
+  { label: "Device ID", key: "DEVICE_ID" },
+  { label: "Reserve", key: "RESERVE" },
   { label: "TX Log ID", key: "Tx_LOGID" },
   { label: "STR Log ID", key: "Str_LOGID" },
   { label: "Created At", key: "created_at" }
@@ -110,6 +113,13 @@ const AllMachinesReportA = ({ reportData = [], fromDate, toDate, detailedData = 
     acc.totalMeetingHours += machine.totalNonProductiveTime?.breakdown?.meetingHours || 0;
     acc.totalMaintenanceHours += machine.totalNonProductiveTime?.breakdown?.maintenanceHours || 0;
     acc.totalIdleHours += machine.totalNonProductiveTime?.breakdown?.idleHours || 0;
+    
+    // Operation counts
+    acc.totalSewingOperationCount += machine.totalSewingOperationCount || 0;
+    acc.totalSewingSkipCount += machine.totalSewingSkipCount || 0;
+    acc.totalReworkOperationCount += machine.totalReworkOperationCount || 0;
+    acc.totalReworkSkipCount += machine.totalReworkSkipCount || 0;
+    
     return acc;
   }, {
     totalHours: 0,
@@ -118,7 +128,11 @@ const AllMachinesReportA = ({ reportData = [], fromDate, toDate, detailedData = 
     totalNoFeedingHours: 0,
     totalMeetingHours: 0,
     totalMaintenanceHours: 0,
-    totalIdleHours: 0
+    totalIdleHours: 0,
+    totalSewingOperationCount: 0,
+    totalSewingSkipCount: 0,
+    totalReworkOperationCount: 0,
+    totalReworkSkipCount: 0
   }) : {
     totalHours: 0,
     totalProductiveHours: 0,
@@ -126,8 +140,39 @@ const AllMachinesReportA = ({ reportData = [], fromDate, toDate, detailedData = 
     totalNoFeedingHours: 0,
     totalMeetingHours: 0,
     totalMaintenanceHours: 0,
-    totalIdleHours: 0
+    totalIdleHours: 0,
+    totalSewingOperationCount: 0,
+    totalSewingSkipCount: 0,
+    totalReworkOperationCount: 0,
+    totalReworkSkipCount: 0
   };
+
+  // Calculate actual totals from displayed table data
+  const calculatedTotals = processedData && processedData.length > 0
+    ? processedData.flatMap(machine => machine.tableData || []).reduce((acc, row) => {
+        acc.sewingOperationCount += Number(row["Sewing Operation count"] || 0);
+        acc.sewingSkipCount += Number(row["Sewing Skip count"] || 0);
+        acc.reworkOperationCount += Number(row["Rework Operation count"] || 0);
+        acc.reworkSkipCount += Number(row["Rework Skip count"] || 0);
+        acc.totalStitchCount += Number(row["Stitch Count"] || 0);
+        acc.totalNeedleRuntime += Number(row["Needle Runtime"] || 0);
+        return acc;
+      }, {
+        sewingOperationCount: 0,
+        sewingSkipCount: 0,
+        reworkOperationCount: 0,
+        reworkSkipCount: 0,
+        totalStitchCount: 0,
+        totalNeedleRuntime: 0
+      })
+    : {
+        sewingOperationCount: 0,
+        sewingSkipCount: 0,
+        reworkOperationCount: 0,
+        reworkSkipCount: 0,
+        totalStitchCount: 0,
+        totalNeedleRuntime: 0
+      };
 
   const averageProductivePercentage = totals.totalHours > 0 ?
     (totals.totalProductiveHours / totals.totalHours) * 100 : 0;
@@ -150,12 +195,12 @@ const AllMachinesReportA = ({ reportData = [], fromDate, toDate, detailedData = 
             head.key === "created_at" && row[head.key] ? formatConsistentDateTime(row[head.key]) :
               row[head.key] || ""
         )
-      )
-      : processedData.flatMap(machine => machine.tableData || []).map(row =>
-        SUMMARY_TABLE_HEADS.map(head =>
-          row[head.key]?.toFixed ? row[head.key].toFixed(2) : row[head.key] || ""
-        )
-      );
+      )      : processedData.flatMap(machine => machine.tableData || []).map(row => {
+          // Use data directly as provided from the backend
+          return SUMMARY_TABLE_HEADS.map(head => {
+            return row[head.key]?.toFixed ? row[head.key].toFixed(2) : row[head.key] || "";
+          });
+        });
 
     const csvContent = [
       headers.join(','),
@@ -175,9 +220,7 @@ const AllMachinesReportA = ({ reportData = [], fromDate, toDate, detailedData = 
   const downloadHTML = () => {
     const headers = showTableView
       ? DETAILED_TABLE_HEADS.map(head => `<th>${head.label}</th>`).join('')
-      : SUMMARY_TABLE_HEADS.map(head => `<th>${head.label}</th>`).join('');
-
-    const rows = showTableView
+      : SUMMARY_TABLE_HEADS.map(head => `<th>${head.label}</th>`).join('');    const rows = showTableView
       ? (filteredDetailedData || []).map((row, index) => `
           <tr>
             ${DETAILED_TABLE_HEADS.map(head => `
@@ -188,14 +231,16 @@ const AllMachinesReportA = ({ reportData = [], fromDate, toDate, detailedData = 
               }</td>
             `).join('')}
           </tr>
-        `).join('')
-      : processedData.flatMap(machine => machine.tableData || []).map(row => `
+        `).join('')      : processedData.flatMap(machine => machine.tableData || []).map(row => {
+          // Use data directly as provided from the backend
+          return `
           <tr>
-            ${SUMMARY_TABLE_HEADS.map(head => `
-              <td>${row[head.key]?.toFixed ? row[head.key].toFixed(2) : row[head.key] || ''}</td>
-            `).join('')}
+            ${SUMMARY_TABLE_HEADS.map(head => {
+              const value = row[head.key]?.toFixed ? row[head.key].toFixed(2) : row[head.key] || '';
+              return `<td>${value}</td>`;
+            }).join('')}
           </tr>
-        `).join('');
+        `}).join('');
 
     const htmlContent = `<!DOCTYPE html>
       <html>
@@ -436,25 +481,29 @@ const AllMachinesReportA = ({ reportData = [], fromDate, toDate, detailedData = 
                 ))}
               </tr>
             </thead>
-            <tbody>
-              {processedData && processedData.flatMap(machine => machine.tableData || []).length > 0 ? (
-                processedData.flatMap(machine => machine.tableData || []).map((row, index) => (
-                  <tr key={index}>
-                    <td>{row.Date || '-'}</td>
-                    <td>{row["Machine ID"] || '-'}</td>
-                    <td>{row["Sewing Hours (PT)"]?.toFixed(2) || '0.00'}</td>
-                    <td>{row["Needle BreakHours"]?.toFixed(2) || '0.00'}</td>
-                    <td>{row["Rework Hours"]?.toFixed(2) || '0.00'}</td>
-                    <td>{row["Maintenance Hours"]?.toFixed(2) || '0.00'}</td>
-                    <td>{row["Idle Hours"]?.toFixed(2) || '0.00'}</td>
-                    <td>{row["Total Hours"]?.toFixed(2) || '0.00'}</td>
-                    <td>{row["Productive Time (PT) %"]?.toFixed(2) || '0.00'}%</td>
-                    <td>{row["Non-Productive Time (NPT) %"]?.toFixed(2) || '0.00'}%</td>
-                    <td>{row["Sewing Speed"]?.toFixed(2) || '0.00'}</td>
-                    <td>{row["Stitch Count"] || '0'}</td>
-                    <td>{row["Needle Runtime"]?.toFixed(2) || '0.00'}</td>
-                  </tr>
-                ))
+            <tbody>              {processedData && processedData.flatMap(machine => machine.tableData || []).length > 0 ? (
+                processedData.flatMap(machine => machine.tableData || []).map((row, index) => {
+                  return (
+                    <tr key={index}>
+                      <td>{row.Date || '-'}</td>
+                      <td>{row["Machine ID"] || '-'}</td>
+                      <td>{row["Sewing Hours (PT)"]?.toFixed(2) || '0.00'}</td>
+                      <td>{row["Sewing Operation count"] || '0'}</td>
+                      <td>{row["Sewing Skip count"] || '0'}</td>
+                      <td>{row["Rework Operation count"] || '0'}</td>
+                      <td>{row["Rework Skip count"] || '0'}</td>
+                      <td>{row["No Feeding Hours"]?.toFixed(2) || '0.00'}</td>
+                      <td>{row["Meeting Hours"]?.toFixed(2) || '0.00'}</td>
+                      <td>{row["Maintenance Hours"]?.toFixed(2) || '0.00'}</td>
+                      <td>{row["Idle Hours"]?.toFixed(2) || '0.00'}</td>
+                      <td>{row["Total Hours"]?.toFixed(2) || '0.00'}</td>
+                      <td>{row["Productive Time (PT) %"]?.toFixed(2) || '0.00'}%</td>
+                      <td>{row["Non-Productive Time (NPT) %"]?.toFixed(2) || '0.00'}%</td>
+                      <td>{row["Stitch Count"] || '0'}</td>
+                      <td>{row["Needle Runtime"] || '0'}</td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
                   <td colSpan={SUMMARY_TABLE_HEADS.length} className="no-data">
@@ -494,6 +543,27 @@ const AllMachinesReportA = ({ reportData = [], fromDate, toDate, detailedData = 
         <div className="tile needle-runtime-percentage">
           <p>{averageNeedleRuntimePercentage.toFixed(2)}%</p>
           <span>Avg Needle Runtime</span>
+        </div>
+      </div>
+       <div className="operation-counts-summary">
+        <h3>All Machines Count Summary</h3>
+        <div className="summary-tiles">
+          <div className="tile sewing-operation">
+            <p>{calculatedTotals.sewingOperationCount}</p>
+            <span>Total Sewing Operation Count</span>
+          </div>
+          <div className="tile sewing-skip">
+            <p>{calculatedTotals.sewingSkipCount}</p>
+            <span>Total Sewing Skip Count</span>
+          </div>
+          <div className="tile rework-operation">
+            <p>{calculatedTotals.reworkOperationCount}</p>
+            <span>Total Rework Operation Count</span>
+          </div>
+          <div className="tile rework-stitch">
+            <p>{calculatedTotals.reworkSkipCount}</p>
+            <span>Total Rework Skip Count</span>
+          </div>
         </div>
       </div>
 
@@ -548,7 +618,8 @@ const AllMachinesReportA = ({ reportData = [], fromDate, toDate, detailedData = 
             <p>{totals.totalIdleHours.toFixed(2)} Hrs: Idle Time</p>
           </div>
         </div>
-      </div>
+      </div>      {/* Operation Counts Summary Section */}
+     
     </div>
   );
 };

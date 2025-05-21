@@ -81,15 +81,20 @@ const MachineReportA = ({ machine_id, fromDate, toDate }) => {
         console.error("Error formatting to_date:", error);
         params.append('to_date', toDate);
       }
-    }    fetch(`http://localhost:8000/api/api/afl/machines/${machine_id}/reports/?${params}`)
+    }    fetch(`https://oceanatlantic.pinesphere.co.in/api/api/afl/machines/${machine_id}/reports/?${params}`)
       .then((response) => response.json())
       .then((data) => {
+        console.log("API Response:", JSON.stringify(data).slice(0, 500)); // Log the first part of the response
+        console.log("Raw Data Structure:", data);
+
         const allTableData = data.tableData || [];
+        console.log("Table Data Length:", allTableData.length);
         
+        // Set the data directly from the API without complex processing
         setReportData({
           ...data,
           tableData: allTableData,
-          allTableData: allTableData,
+          allTableData: allTableData
         });
       })
       .catch((error) => console.error("Error fetching machine report:", error));
@@ -215,7 +220,6 @@ const MachineReportA = ({ machine_id, fromDate, toDate }) => {
     link.click();
     document.body.removeChild(link);
   };
-
   // Define chart data with explicit colors
   const chartData = [
     { name: "Sewing Hours", value: reportData.totalProductiveTime.hours || 0, color: "#3E3561" },
@@ -224,6 +228,12 @@ const MachineReportA = ({ machine_id, fromDate, toDate }) => {
     { name: "Maintenance Hours", value: reportData.totalNonProductiveTime.breakdown.maintenanceHours || 0, color: "#118374" },
     { name: "Idle Hours", value: reportData.totalNonProductiveTime.breakdown.idleHours || 0, color: "#F8A723" }
   ].filter(item => item.value > 0);
+  
+  // Calculate operation totals from table data
+  const totalSewingOperationCount = reportData.tableData.reduce((sum, row) => sum + (row["Sewing Operation count"] || 0), 0);
+  const totalSewingSkipCount = reportData.tableData.reduce((sum, row) => sum + (row["Sewing Skip count"] || 0), 0);
+  const totalReworkOperationCount = reportData.tableData.reduce((sum, row) => sum + (row["Rework Operation count"] || 0), 0);
+  const totalReworkSkipCount = reportData.tableData.reduce((sum, row) => sum + (row["Rework Skip count"] || 0), 0);
 
   return (
     <div className="operator-container">
@@ -251,14 +261,15 @@ const MachineReportA = ({ machine_id, fromDate, toDate }) => {
                 <th>Sewing Skip Count</th>
                 <th>Rework Operation Count</th>
                 <th>Rework Skip Count</th>
-                <th>Needle Break Hours</th>
-                <th>Rework Hours</th>
+                <th>No Feeding Hours</th>
+                <th>Meeting Hours</th>
                 <th>Maintenance Hours</th>
                 <th>Idle Hours</th>
                 <th>Total Hours</th>
                 <th>PT %</th>
                 <th>NPT %</th>
-             
+                <th>Operation Count </th>
+                <th>Skip Count</th>
               </tr>
             </thead>
             <tbody>
@@ -266,16 +277,19 @@ const MachineReportA = ({ machine_id, fromDate, toDate }) => {
                 <tr key={index}>
                   <td>{row.Date || '-'}</td>
                   <td>{(row["Sewing Hours (PT)"] || 0).toFixed(2)}</td>
-                  <td>{(row["Needle Break Hours"] || 0).toFixed(2)}</td>
-                  <td>{(row["Rework Hours"] || 0).toFixed(2)}</td>
+                  <td>{row["Sewing Operation count"] || 0}</td>
+                  <td>{row["Sewing Skip count"] || 0}</td>
+                  <td>{row["Rework Operation count"] || 0}</td>
+                  <td>{row["Rework Skip count"] || 0}</td>
+                  <td>{(row["No Feeding Hours"] || 0).toFixed(2)}</td>
+                  <td>{(row["Meeting Hours"] || 0).toFixed(2)}</td>
                   <td>{(row["Maintenance Hours"] || 0).toFixed(2)}</td>
                   <td>{(row["Idle Hours"] || 0).toFixed(2)}</td>
                   <td>{(row["Total Hours"] || 0).toFixed(2)}</td>
                   <td>{(row["Productive Time (PT) %"] || 0).toFixed(2)}%</td>
                   <td>{(row["Non-Productive Time (NPT) %"] || 0).toFixed(2)}%</td>
-                  <td>{(row["Sewing Speed"] || 0).toFixed(2)}</td>
                   <td>{row["Stitch Count"] || 0}</td>
-                  <td>{(row["Needle Runtime"] || 0).toFixed(2)}</td>
+                  <td>{row["Needle Runtime"] || 0}</td>
                 </tr>
               ))}
             </tbody>
@@ -296,9 +310,7 @@ const MachineReportA = ({ machine_id, fromDate, toDate }) => {
           <h4><FaClock /> Total Hours</h4>
           <p>{reportData.totalHours?.toFixed(2) || '0.00'} Hrs</p>
         </div>
-      </div>
-
-      <div className="summary-tiles">
+      </div>      <div className="summary-tiles">
         <div className="tile production-percentage">
           <p>{(reportData.totalProductiveTime.percentage || 0).toFixed(2)}%</p>
           <span>Productive Time</span>
@@ -310,6 +322,26 @@ const MachineReportA = ({ machine_id, fromDate, toDate }) => {
               : '0.00'
           }</p>
           <span>Average Sewing Speed</span>
+        </div>
+      </div>
+        <div className="operation-counts-summary">
+        <h3> Count Summary</h3>
+        <div className="summary-tiles">
+          <div className="tile sewing-operation">
+            <p>{totalSewingOperationCount}</p>
+            <span>Total Sewing Operation Count</span>
+          </div>
+          <div className="tile sewing-skip">
+            <p>{totalSewingSkipCount}</p>
+            <span>Total Sewing Skip Count</span>
+          </div>
+          <div className="tile rework-operation">
+            <p>{totalReworkOperationCount}</p>
+            <span>Total Rework Operation Count</span>
+          </div>          <div className="tile rework-stitch">
+            <p>{totalReworkSkipCount}</p>
+            <span>Total Rework Skip Count</span>
+          </div>
         </div>
       </div>
 
@@ -359,11 +391,12 @@ const MachineReportA = ({ machine_id, fromDate, toDate }) => {
           <div className="hour-box">
             <span className="dot maintenances"></span>
             <p>{(reportData.totalNonProductiveTime.breakdown.maintenanceHours || 0).toFixed(2)} Hrs: Maintenance Hours</p>
-          </div>
-          <div className="hour-box">
+          </div>          <div className="hour-box">
             <span className="dot idle"></span>
             <p>{(reportData.totalNonProductiveTime.breakdown.idleHours || 0).toFixed(2)} Hrs: Idle Hours</p>
           </div>
+          <div className="separator" style={{ borderTop: '1px solid #eee', margin: '15px 0' }}></div>
+         
         </div>
       </div>
     </div>

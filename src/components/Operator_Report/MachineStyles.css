@@ -112,6 +112,37 @@
       &.needle-runtime-percentage {
         border-left: 4px solid #3498db;
       }
+      
+      &.sewing-operation {
+        border-left: 4px solid #3E3561;
+      }
+      
+      &.sewing-skip {
+        border-left: 4px solid #8E44AD;
+      }
+      
+      &.rework-operation {
+        border-left: 4px solid #E74C3C;
+      }
+      
+      &.rework-stitch {
+        border-left: 4px solid #118374;
+      }
+    }
+    
+    .operation-counts-summary {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 24px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+      
+      h3 {
+        font-size: 1.25rem;
+        color: #2c3e50;
+        margin-bottom: 15px;
+        font-weight: 600;
+      }
     }
   }
   

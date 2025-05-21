@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { FaFilter, FaRedo, FaCalendarAlt, FaDownload, FaSearch, FaChartBar, FaArrowLeft, FaTable } from "react-icons/fa";
 import "../../dashboard/areaTable/AreaTable.scss";
 import MachineReportA from "../../Operator_Report/MachineReportA";
-import AllMachinesReport from "../../Operator_Report/AllMachinesReport";
+import AllMachinesReport from "../../Operator_Report/AllMachinesReportA";
 
 const TABLE_HEADS = [
   { label: "S.No", key: "serial_number" },
@@ -14,8 +14,8 @@ const TABLE_HEADS = [
   { label: "End Time", key: "END_TIME" },
   { label: "Mode", key: "MODE" },
   { label: "Mode Description", key: "mode_description" },
-  { label: "Stitch Count", key: "STITCH_COUNT" },
-  { label: "Needle Runtime", key: "NEEDLE_RUNTIME" },
+  { label: "Operation Count", key: "STITCH_COUNT" },
+  { label: "Skip count", key: "NEEDLE_RUNTIME" },
   { label: "Needle Stop Time", key: "NEEDLE_STOPTIME" },
   { label: "Duration", key: "DEVICE_ID" },
   { label: "SPM", key: "RESERVE" },
@@ -97,7 +97,7 @@ const OverallMachineA = () => {
     
     setIsLoading(true);
     try {
-      let url = `http://127.0.0.1:8000/api/user-machine-logs/?`;
+      let url = `https://oceanatlantic.pinesphere.co.in/api/user-machine-logs/?`;
       if (fromDate) url += `from_date=${fromDate}&`;
       if (toDate) url += `to_date=${toDate}`;
       
@@ -254,7 +254,7 @@ const OverallMachineA = () => {
       if (fromDate) params.append('from_date', fromDate);
       if (toDate) params.append('to_date', toDate);
 
-      const response = await fetch(`http://localhost:8000/api/api/afl/machines/all/reports/?${params}`);
+      const response = await fetch(`https://oceanatlantic.pinesphere.co.in/api/api/afl/machines/all/reports/?${params}`);
       const data = await response.json();
       
       setAllMachinesReportData(data.allMachinesReport || []);

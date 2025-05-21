@@ -97,7 +97,7 @@ const MachineOverall = () => {
     
     setIsLoading(true);
     try {
-      let url = `http://127.0.0.1:8000/api/logs/?`;
+      let url = `https://oceanatlantic.pinesphere.co.in/api/logs/?`;
       if (fromDate) url += `from_date=${fromDate}&`;
       if (toDate) url += `to_date=${toDate}`;
       
@@ -255,7 +255,7 @@ const MachineOverall = () => {
       if (fromDate) params.append('from_date', fromDate);
       if (toDate) params.append('to_date', toDate);
 
-      const response = await fetch(`http://127.0.0.1:8000/api/api/machines/all/reports/?${params}`);
+      const response = await fetch(`https://oceanatlantic.pinesphere.co.in/api/api/machines/all/reports/?${params}`);
       const data = await response.json();
       
       setAllMachinesReportData(data.allMachinesReport || []);
