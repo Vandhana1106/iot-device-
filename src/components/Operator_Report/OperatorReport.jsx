@@ -53,6 +53,8 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
         const totalMeetingHours = allTableData.reduce((sum, row) => sum + row["Meeting Hours"], 0);
         const totalNoFeedingHours = allTableData.reduce((sum, row) => sum + row["No Feeding Hours"], 0);
         const totalMaintenanceHours = allTableData.reduce((sum, row) => sum + row["Maintenance Hours"], 0);
+        const totalReworkHours = allTableData.reduce((sum, row) => sum + row["Rework Hours"], 0);
+        const totalNeedleBreakHours = allTableData.reduce((sum, row) => sum + row["Needle Break Hours"], 0);
 
         setReportData({
           ...data,
@@ -61,6 +63,8 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
           todayMeetingHours: totalMeetingHours,
           todayNoFeedingHours: totalNoFeedingHours,
           todayMaintenanceHours: totalMaintenanceHours,
+          todayReworkHours: totalReworkHours, // ensure these are set
+          todayNeedleBreakHours: totalNeedleBreakHours, // ensure these are set
           tableData: allTableData,
           allTableData: allTableData,
         });
@@ -172,7 +176,7 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
     const headers = [
       'Date', 'Operator ID', 'Operator Name', 'Total Hours', 
       'Sewing Hours', 'Idle Hours', 'Meeting Hours', 'No Feeding Hours', 
-      'Maintenance Hours', 'Productive Time (%)', 'NPT (%)', 
+      'Maintenance Hours', 'Rework Hours', 'Needle Break Hours', 'Productive Time (%)', 'NPT (%)', 
       'Sewing Speed', 'Stitch Count', 'Needle Runtime'
     ];
     
@@ -222,6 +226,8 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
           <p>Total Production Hours: ${reportData.totalProductionHours.toFixed(2)}</p>
           <p>Total Non-Production Hours: ${reportData.totalNonProductionHours.toFixed(2)}</p>
           <p>Total Idle Hours: ${reportData.totalIdleHours.toFixed(2)}</p>
+          <p>Total Rework Hours: ${reportData.totalReworkHours?.toFixed(2) || '0.00'}</p>
+          <p>Total Needle Break Hours: ${reportData.totalNeedleBreakHours?.toFixed(2) || '0.00'}</p>
           <p>Needle Runtime Percentage: ${reportData.needleRuntimePercentage.toFixed(2)}%</p>
         </div>
         <table>
@@ -230,7 +236,7 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
               ${[
                 'Date', 'Operator ID', 'Operator Name', 'Total Hours', 
                 'Sewing Hours', 'Idle Hours', 'Meeting Hours', 'No Feeding Hours', 
-                'Maintenance Hours', 'Productive Time (%)', 'NPT (%)', 
+                'Maintenance Hours', 'Rework Hours', 'Needle Break Hours', 'Productive Time in %', 'NPT in %', 
                 'Sewing Speed', 'Stitch Count', 'Needle Runtime'
               ].map(header => `<th>${header}</th>`).join('')}
             </tr>
@@ -241,7 +247,7 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
                 ${[
                   'Date', 'Operator ID', 'Operator Name', 'Total Hours', 
                   'Sewing Hours', 'Idle Hours', 'Meeting Hours', 'No Feeding Hours', 
-                  'Maintenance Hours', 'Productive Time in %', 'NPT in %', 
+                  'Maintenance Hours', 'Rework Hours', 'Needle Break Hours', 'Productive Time in %', 'NPT in %', 
                   'Sewing Speed', 'Stitch Count', 'Needle Runtime'
                 ].map(header => {
                   const value = row[header] !== undefined ? 
@@ -273,16 +279,20 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
     reportData.todayIdleHours + 
     reportData.todayMeetingHours + 
     reportData.todayNoFeedingHours + 
-    reportData.todayMaintenanceHours;
+    reportData.todayMaintenanceHours +
+    (reportData.todayReworkHours || 0) +
+    (reportData.todayNeedleBreakHours || 0);
 
   // Prepare data for Recharts
-  const chartData = [
-    { name: "Sewing Hours", value: reportData.todaySewingHours, color: "#3E3561" },
-    { name: "No Feeding Hours", value: reportData.todayNoFeedingHours, color: "#118374" },
-    { name: "Maintenance Hours", value: reportData.todayMaintenanceHours, color: "#F8A723" },
-    { name: "Meeting Hours", value: reportData.todayMeetingHours, color: "#E74C3C" },
-    { name: "Idle Hours", value: reportData.todayIdleHours, color: "#8E44AD" }
-  ].filter(item => item.value > 0); // Only include items with values > 0
+ const chartData = [
+  { name: "Sewing Hours", value: reportData.todaySewingHours, color: "#3E3561" },
+  { name: "No Feeding Hours", value: reportData.todayNoFeedingHours, color: "#118374" },
+  { name: "Maintenance Hours", value: reportData.todayMaintenanceHours, color: "#F8A723" },
+  { name: "Meeting Hours", value: reportData.todayMeetingHours, color: "#E74C3C" },
+  { name: "Idle Hours", value: reportData.todayIdleHours, color: "#8E44AD" },
+  { name: "Rework Hours", value: reportData.todayReworkHours || 0, color: "#FF6F61" },
+  { name: "Needle Break Hours", value: reportData.todayNeedleBreakHours || 0, color: "#00B8D9" }
+].filter(item => item.value > 0); // Only include items with values > 0
 
   return (
     <div className="operator-container">
@@ -319,6 +329,8 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
                 <th>Meeting Hours</th>
                 <th>No Feeding Hours</th>
                 <th>Maintenance Hours</th>
+                <th>Rework Hours</th>
+                <th>Needle Break Hours</th>
                 <th>Productive Time (%)</th>
                 <th>NPT (%)</th>
                 <th>Sewing Speed</th>
@@ -338,6 +350,8 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
                   <td>{row["Meeting Hours"].toFixed(2)}</td>
                   <td>{row["No Feeding Hours"].toFixed(2)}</td>
                   <td>{row["Maintenance Hours"].toFixed(2)}</td>
+                  <td>{row["Rework Hours"]?.toFixed(2) || '0.00'}</td>
+                  <td>{row["Needle Break Hours"]?.toFixed(2) || '0.00'}</td>
                   <td>{row["Productive Time in %"].toFixed(2)}%</td>
                   <td>{row["NPT in %"].toFixed(2)}%</td>
                   <td>{row["Sewing Speed"].toFixed(2)}</td>
@@ -416,6 +430,14 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
           <h4><FaClock /> Total Hours</h4>
           <p>{reportData.totalHours?.toFixed(2) || '0.00'} Hrs</p>
         </div>
+        <div className="indicator">
+          <h4>Rework Hours</h4>
+          <p>{reportData.totalReworkHours?.toFixed(2) || '0.00'} Hrs</p>
+        </div>
+        <div className="indicator">
+          <h4>Needle Break Hours</h4>
+          <p>{reportData.totalNeedleBreakHours?.toFixed(2) || '0.00'} Hrs</p>
+        </div>
       </div>
      
       <div className="summary-tiles">
@@ -484,6 +506,14 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
           <div className="hour-box">
             <span className="dot no-feeding"></span>
             <p>{reportData.todayIdleHours.toFixed(2)} Hrs: Idle Hours</p>
+          </div>
+          <div className="hour-box">
+            <span className="dot rework"></span>
+            <p>{reportData.todayReworkHours?.toFixed(2) || '0.00'} Hrs: Rework Hours</p>
+          </div>
+          <div className="hour-box">
+            <span className="dot needle-break"></span>
+            <p>{reportData.todayNeedleBreakHours?.toFixed(2) || '0.00'} Hrs: Needle Break Hours</p>
           </div>
         </div>
       </div>
