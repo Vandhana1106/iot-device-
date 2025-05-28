@@ -257,6 +257,12 @@
           &.no-feeding {
             background-color: #8E44AD;
           }
+          &.rework {
+            background-color: #FF6F61;
+          }
+          &.needle-break {
+            background-color: #00B8D9;
+          }
         }
         
         p {

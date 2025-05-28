@@ -6,7 +6,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://oceanatlantic.pinesphere.co.in/',
+        target: 'http://localhost:8000/',
         changeOrigin: true,
         secure: false,
       },

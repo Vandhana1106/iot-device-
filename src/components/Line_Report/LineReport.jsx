@@ -21,6 +21,8 @@ const LineReport = ({ lineNumber, fromDate, toDate }) => {
         noFeedingHours: 0,
         meetingHours: 0,
         maintenanceHours: 0,
+        reworkHours: 0,
+        needleBreakHours: 0,
         idleHours: 0
       }
     },
@@ -44,7 +46,7 @@ const LineReport = ({ lineNumber, fromDate, toDate }) => {
     if (fromDate) params.append('from_date', fromDate);
     if (toDate) params.append('to_date', toDate);
 
-    fetch(`https://oceanatlantic.pinesphere.co.in/api/line-reports/${lineNumber}/?${params}`)
+    fetch(`http://localhost:8000/api/line-reports/${lineNumber}/?${params}`)
       .then((response) => response.json())
       .then((data) => {
         setReportData({
@@ -203,8 +205,18 @@ const LineReport = ({ lineNumber, fromDate, toDate }) => {
     { name: "No Feeding Hours", value: reportData.totalNonProductiveTime.breakdown.noFeedingHours, color: "#8E44AD" },
     { name: "Meeting Hours", value: reportData.totalNonProductiveTime.breakdown.meetingHours, color: "#E74C3C" },
     { name: "Maintenance Hours", value: reportData.totalNonProductiveTime.breakdown.maintenanceHours, color: "#118374" },
+    { name: "Rework Hours", value: reportData.totalNonProductiveTime.breakdown.reworkHours, color: "#FF6F61" },
+    { name: "Needle Break Hours", value: reportData.totalNonProductiveTime.breakdown.needleBreakHours, color: "#00B8D9" },
     { name: "Idle Hours", value: reportData.totalNonProductiveTime.breakdown.idleHours, color: "#F8A723" }
   ].filter(item => item.value > 0);
+
+  // Utility to format decimal hours to hh:mm
+  const formatToHHMM = (decimalHours) => {
+    if (typeof decimalHours !== 'number' || isNaN(decimalHours)) return '00:00';
+    const hours = Math.floor(decimalHours);
+    const minutes = Math.round((decimalHours - hours) * 60);
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  };
 
   return (
     <div className="line-container">
@@ -231,6 +243,8 @@ const LineReport = ({ lineNumber, fromDate, toDate }) => {
                 <th>No Feeding Hours</th>
                 <th>Meeting Hours</th>
                 <th>Maintenance Hours</th>
+                <th>Rework Hours</th>
+                <th>Needle Break Hours</th>
                 <th>Idle Hours</th>
                 <th>Total Hours</th>
                 <th>PT %</th>
@@ -245,12 +259,14 @@ const LineReport = ({ lineNumber, fromDate, toDate }) => {
               {reportData.tableData.map((row, index) => (
                 <tr key={index}>
                   <td>{row.Date}</td>
-                  <td>{safeToFixed(row["Sewing Hours (PT)"])}</td>
-                  <td>{safeToFixed(row["No Feeding Hours"])}</td>
-                  <td>{safeToFixed(row["Meeting Hours"])}</td>
-                  <td>{safeToFixed(row["Maintenance Hours"])}</td>
-                  <td>{safeToFixed(row["Idle Hours"])}</td>
-                  <td>{safeToFixed(row["Total Hours"])}</td>
+                  <td>{formatToHHMM(row["Sewing Hours (PT)"])}</td>
+                  <td>{formatToHHMM(row["No Feeding Hours"])}</td>
+                  <td>{formatToHHMM(row["Meeting Hours"])}</td>
+                  <td>{formatToHHMM(row["Maintenance Hours"])}</td>
+                  <td>{formatToHHMM(row["Rework Hours"])}</td>
+                  <td>{formatToHHMM(row["Needle Break Hours"])}</td>
+                  <td>{formatToHHMM(row["Idle Hours"])}</td>
+                  <td>{formatToHHMM(row["Total Hours"])}</td>
                   <td>{safeToFixed(row["Productive Time (PT) %"])}%</td>
                   <td>{safeToFixed(row["Non-Productive Time (NPT) %"])}%</td>
                   <td>{safeToFixed(row["Sewing Speed"])}</td>
@@ -267,15 +283,15 @@ const LineReport = ({ lineNumber, fromDate, toDate }) => {
       <div className="top-indicators">
         <div className="indicator">
           <h4><FaTshirt /> Total Sewing Hours</h4>
-          <p>{safeToFixed(reportData.totalProductiveTime.hours)} Hrs</p>
+          <p>{formatToHHMM(reportData.totalProductiveTime.hours)} Hrs</p>
         </div>
         <div className="indicator">
           <h4><FaTools /> Total Non-Productive Hours</h4>
-          <p>{safeToFixed(reportData.totalNonProductiveTime.hours)} Hrs</p>
+          <p>{formatToHHMM(reportData.totalNonProductiveTime.hours)} Hrs</p>
         </div>
         <div className="indicator">
           <h4><FaClock /> Total Hours</h4>
-          <p>{safeToFixed(reportData.totalHours)} Hrs</p>
+          <p>{formatToHHMM(reportData.totalHours)} Hrs</p>
         </div>
       </div>
 
@@ -296,7 +312,7 @@ const LineReport = ({ lineNumber, fromDate, toDate }) => {
 
       <div className="chart-breakdown-container">
         <div className="graph-section">
-          <h3>Hours Breakdown (Total: {safeToFixed(reportData.totalHours)} Hrs)</h3>
+          <h3>Hours Breakdown (Total: {formatToHHMM(reportData.totalHours)} Hrs)</h3>
           <div style={{ width: '100%', height: '320px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -321,30 +337,38 @@ const LineReport = ({ lineNumber, fromDate, toDate }) => {
             </ResponsiveContainer>
           </div>
           <div className="total-hours" style={{ textAlign: 'center', marginTop: '10px' }}>
-            <strong>Total Hours: {safeToFixed(reportData.totalHours)} Hrs</strong>
+            <strong>Total Hours: {formatToHHMM(reportData.totalHours)} Hrs</strong>
           </div>
         </div>
 
         <div className="hour-breakdown">
           <div className="hour-box">
             <span className="dot production"></span>
-            <p>{safeToFixed(reportData.totalProductiveTime.hours)} Hrs: Sewing Hours</p>
+            <p>{formatToHHMM(reportData.totalProductiveTime.hours)} Hrs: Sewing Hours</p>
           </div>
           <div className="hour-box">
             <span className="dot no-feeding"></span>
-            <p>{safeToFixed(reportData.totalNonProductiveTime.breakdown.noFeedingHours)} Hrs: No Feeding</p>
+            <p>{formatToHHMM(reportData.totalNonProductiveTime.breakdown.noFeedingHours)} Hrs: No Feeding</p>
           </div>
           <div className="hour-box">
             <span className="dot meeting"></span>
-            <p>{safeToFixed(reportData.totalNonProductiveTime.breakdown.meetingHours)} Hrs: Meetings</p>
+            <p>{formatToHHMM(reportData.totalNonProductiveTime.breakdown.meetingHours)} Hrs: Meetings</p>
           </div>
           <div className="hour-box">
             <span className="dot maintenances"></span>
-            <p>{safeToFixed(reportData.totalNonProductiveTime.breakdown.maintenanceHours)} Hrs: Maintenance</p>
+            <p>{formatToHHMM(reportData.totalNonProductiveTime.breakdown.maintenanceHours)} Hrs: Maintenance</p>
+          </div>
+          <div className="hour-box">
+            <span className="dot rework"></span>
+            <p>{formatToHHMM(reportData.totalNonProductiveTime.breakdown.reworkHours)} Hrs: Rework</p>
+          </div>
+          <div className="hour-box">
+            <span className="dot needle-break"></span>
+            <p>{formatToHHMM(reportData.totalNonProductiveTime.breakdown.needleBreakHours)} Hrs: Needle Break</p>
           </div>
           <div className="hour-box">
             <span className="dot idle"></span>
-            <p>{safeToFixed(reportData.totalNonProductiveTime.breakdown.idleHours)} Hrs: Idle Time</p>
+            <p>{formatToHHMM(reportData.totalNonProductiveTime.breakdown.idleHours)} Hrs: Idle Time</p>
           </div>
         </div>
       </div>

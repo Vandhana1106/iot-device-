@@ -20,7 +20,9 @@ const MachineReport = ({ machine_id, fromDate, toDate }) => {
         noFeedingHours: 0,
         meetingHours: 0,
         maintenanceHours: 0,
-        idleHours: 0
+        idleHours: 0,
+        reworkHours: 0, // Mode 6
+        needleBreakHours: 0 // Mode 7
       }
     },
     totalStitchCount: 0,
@@ -41,7 +43,7 @@ const MachineReport = ({ machine_id, fromDate, toDate }) => {
     if (fromDate) params.append('from_date', fromDate);
     if (toDate) params.append('to_date', toDate);
 
-    fetch(`https://oceanatlantic.pinesphere.co.in/api/api/machines/${machine_id}/reports/?${params}`)
+    fetch(`http://localhost:8000/api/api/machines/${machine_id}/reports/?${params}`)
       .then((response) => response.json())
       .then((data) => {
         const allTableData = data.tableData || [];
@@ -164,7 +166,9 @@ const MachineReport = ({ machine_id, fromDate, toDate }) => {
     { name: "No Feeding Hours", value: reportData.totalNonProductiveTime.breakdown.noFeedingHours || 0, color: "#8E44AD" },
     { name: "Meeting Hours", value: reportData.totalNonProductiveTime.breakdown.meetingHours || 0, color: "#E74C3C" },
     { name: "Maintenance Hours", value: reportData.totalNonProductiveTime.breakdown.maintenanceHours || 0, color: "#118374" },
-    { name: "Idle Hours", value: reportData.totalNonProductiveTime.breakdown.idleHours || 0, color: "#F8A723" }
+    { name: "Idle Hours", value: reportData.totalNonProductiveTime.breakdown.idleHours || 0, color: "#F8A723" },
+    { name: "Rework", value: reportData.totalNonProductiveTime.breakdown.reworkHours || 0, color: "#FF6F61" }, // Mode 6
+    { name: "Needle Break", value: reportData.totalNonProductiveTime.breakdown.needleBreakHours || 0, color: "#00B8D9" } // Mode 7
   ].filter(item => item.value > 0);
 
   return (
@@ -193,6 +197,8 @@ const MachineReport = ({ machine_id, fromDate, toDate }) => {
                 <th>Meeting Hours</th>
                 <th>Maintenance Hours</th>
                 <th>Idle Hours</th>
+                <th>Rework</th>
+                <th>Needle Break</th>
                 <th>Total Hours</th>
                 <th>PT %</th>
                 <th>NPT %</th>
@@ -210,6 +216,8 @@ const MachineReport = ({ machine_id, fromDate, toDate }) => {
                   <td>{(row["Meeting Hours"] || 0).toFixed(2)}</td>
                   <td>{(row["Maintenance Hours"] || 0).toFixed(2)}</td>
                   <td>{(row["Idle Hours"] || 0).toFixed(2)}</td>
+                  <td>{(row["Rework"] || 0).toFixed(2)}</td>
+                  <td>{(row["Needle Break"] || 0).toFixed(2)}</td>
                   <td>{(row["Total Hours"] || 0).toFixed(2)}</td>
                   <td>{(row["Productive Time (PT) %"] || 0).toFixed(2)}%</td>
                   <td>{(row["Non-Productive Time (NPT) %"] || 0).toFixed(2)}%</td>
@@ -303,6 +311,14 @@ const MachineReport = ({ machine_id, fromDate, toDate }) => {
           <div className="hour-box">
             <span className="dot idle"></span>
             <p>{(reportData.totalNonProductiveTime.breakdown.idleHours || 0).toFixed(2)} Hrs: Idle Hours</p>
+          </div>
+          <div className="hour-box">
+            <span className="dot rework"></span>
+            <p>{(reportData.totalNonProductiveTime.breakdown.reworkHours || 0).toFixed(2)} Hrs: Rework</p>
+          </div>
+          <div className="hour-box">
+            <span className="dot needle-break"></span>
+            <p>{(reportData.totalNonProductiveTime.breakdown.needleBreakHours || 0).toFixed(2)} Hrs: Needle Break</p>
           </div>
         </div>
       </div>

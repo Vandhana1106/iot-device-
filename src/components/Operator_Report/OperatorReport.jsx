@@ -35,6 +35,24 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
     toDate: ''
   });
 
+  const [dateError, setDateError] = useState("");
+
+  // Utility to format decimal hours to HH:MM
+  const formatToHHMM = (value) => {
+    const num = parseFloat(value);
+    if (isNaN(num) || num <= 0) return '00:00';
+    const totalMinutes = Math.round(num * 60);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  };
+
+  // Helper function to safely convert to number and format
+  const safeToFixed = (value, decimals = 2) => {
+    const num = parseFloat(value);
+    return isNaN(num) ? '0.00' : num.toFixed(decimals);
+  };
+
   useEffect(() => {
     if (!operator_name) return;
 
@@ -48,13 +66,13 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
       .then((data) => {
         const allTableData = data.tableData;
         
-        const totalSewingHours = allTableData.reduce((sum, row) => sum + row["Sewing Hours"], 0);
-        const totalIdleHours = allTableData.reduce((sum, row) => sum + row["Idle Hours"], 0);
-        const totalMeetingHours = allTableData.reduce((sum, row) => sum + row["Meeting Hours"], 0);
-        const totalNoFeedingHours = allTableData.reduce((sum, row) => sum + row["No Feeding Hours"], 0);
-        const totalMaintenanceHours = allTableData.reduce((sum, row) => sum + row["Maintenance Hours"], 0);
-        const totalReworkHours = allTableData.reduce((sum, row) => sum + row["Rework Hours"], 0);
-        const totalNeedleBreakHours = allTableData.reduce((sum, row) => sum + row["Needle Break Hours"], 0);
+        const totalSewingHours = allTableData.reduce((sum, row) => sum + (parseFloat(row["Sewing Hours"]) || 0), 0);
+        const totalIdleHours = allTableData.reduce((sum, row) => sum + (parseFloat(row["Idle Hours"]) || 0), 0);
+        const totalMeetingHours = allTableData.reduce((sum, row) => sum + (parseFloat(row["Meeting Hours"]) || 0), 0);
+        const totalNoFeedingHours = allTableData.reduce((sum, row) => sum + (parseFloat(row["No Feeding Hours"]) || 0), 0);
+        const totalMaintenanceHours = allTableData.reduce((sum, row) => sum + (parseFloat(row["Maintenance Hours"]) || 0), 0);
+        const totalReworkHours = allTableData.reduce((sum, row) => sum + (parseFloat(row["Rework Hours"]) || 0), 0);
+        const totalNeedleBreakHours = allTableData.reduce((sum, row) => sum + (parseFloat(row["Needle Break Hours"]) || 0), 0);
 
         setReportData({
           ...data,
@@ -63,8 +81,8 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
           todayMeetingHours: totalMeetingHours,
           todayNoFeedingHours: totalNoFeedingHours,
           todayMaintenanceHours: totalMaintenanceHours,
-          todayReworkHours: totalReworkHours, // ensure these are set
-          todayNeedleBreakHours: totalNeedleBreakHours, // ensure these are set
+          todayReworkHours: totalReworkHours,
+          todayNeedleBreakHours: totalNeedleBreakHours,
           tableData: allTableData,
           allTableData: allTableData,
         });
@@ -141,23 +159,24 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
   };
 
   const applyTableFilter = () => {
+    const { fromDate, toDate } = tableFilter;
+    if (fromDate && toDate && new Date(fromDate) > new Date(toDate)) {
+      setDateError('From date must be earlier than or equal to To date.');
+      return;
+    }
     const filteredData = reportData.allTableData.filter(row => {
       const rowDate = new Date(row.Date);
-      const fromDate = tableFilter.fromDate ? new Date(tableFilter.fromDate) : null;
-      const toDate = tableFilter.toDate ? new Date(tableFilter.toDate) : null;
-      
+      const fromDateObj = fromDate ? new Date(fromDate) : null;
+      const toDateObj = toDate ? new Date(toDate) : null;
       let valid = true;
-      if (fromDate) valid = valid && rowDate >= fromDate;
-      if (toDate) valid = valid && rowDate <= toDate;
+      if (fromDateObj) valid = valid && rowDate >= fromDateObj;
+      if (toDateObj) valid = valid && rowDate <= toDateObj;
       return valid;
     });
-
     setReportData(prev => ({
       ...prev,
       tableData: filteredData
     }));
-    
-    // Reset to first page when filtering
     setCurrentPage(1);
   };
 
@@ -185,8 +204,8 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
       ...reportData.tableData.map(row => 
         headers.map(header => {
           const value = row[header] !== undefined ? 
-            (header.includes('%') ? row[header] : 
-             typeof row[header] === 'number' ? row[header].toFixed(2) : 
+            (header.includes('%') ? safeToFixed(row[header]) : 
+             typeof row[header] === 'number' ? safeToFixed(row[header]) : 
              row[header]) : '';
           return `"${value}"`;
         }).join(',')
@@ -223,12 +242,12 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
           <h2 class="title">Operator Report: ${operator_name}</h2>
           <p>Generated on: ${new Date().toLocaleString()}</p>
           <p>Operator ID: ${reportData.tableData[0]?.['Operator ID'] || 'N/A'}</p>
-          <p>Total Production Hours: ${reportData.totalProductionHours.toFixed(2)}</p>
-          <p>Total Non-Production Hours: ${reportData.totalNonProductionHours.toFixed(2)}</p>
-          <p>Total Idle Hours: ${reportData.totalIdleHours.toFixed(2)}</p>
-          <p>Total Rework Hours: ${reportData.totalReworkHours?.toFixed(2) || '0.00'}</p>
-          <p>Total Needle Break Hours: ${reportData.totalNeedleBreakHours?.toFixed(2) || '0.00'}</p>
-          <p>Needle Runtime Percentage: ${reportData.needleRuntimePercentage.toFixed(2)}%</p>
+          <p>Total Production Hours: ${safeToFixed(reportData.totalProductionHours)}</p>
+          <p>Total Non-Production Hours: ${safeToFixed(reportData.totalNonProductionHours)}</p>
+          <p>Total Idle Hours: ${safeToFixed(reportData.totalIdleHours)}</p>
+          <p>Total Rework Hours: ${safeToFixed(reportData.totalReworkHours)}</p>
+          <p>Total Needle Break Hours: ${safeToFixed(reportData.totalNeedleBreakHours)}</p>
+          <p>Needle Runtime Percentage: ${safeToFixed(reportData.needleRuntimePercentage)}%</p>
         </div>
         <table>
           <thead>
@@ -251,8 +270,8 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
                   'Sewing Speed', 'Stitch Count', 'Needle Runtime'
                 ].map(header => {
                   const value = row[header] !== undefined ? 
-                    (header.includes('%') ? row[header].toFixed(2) + '%' : 
-                     typeof row[header] === 'number' ? row[header].toFixed(2) : 
+                    (header.includes('%') ? safeToFixed(row[header]) + '%' : 
+                     typeof row[header] === 'number' ? safeToFixed(row[header]) : 
                      row[header]) : '';
                   return `<td>${value}</td>`;
                 }).join('')}
@@ -296,6 +315,14 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
 
   return (
     <div className="operator-container">
+      {dateError && (
+        <div className="popup-overlay">
+          <div className="popup-modal">
+            <p>{dateError}</p>
+            <button onClick={() => setDateError("")}>Close</button>
+          </div>
+        </div>
+      )}
       <div className="table-section">
         <div className="table-header">
           <h3>Operator Report</h3>
@@ -344,19 +371,19 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
                   <td>{row.Date}</td>
                   <td>{row["Operator ID"]}</td>
                   <td>{row["Operator Name"]}</td>
-                  <td>{row["Total Hours"]?.toFixed(2) || '0.00'}</td>
-                  <td>{row["Sewing Hours"].toFixed(2)}</td>
-                  <td>{row["Idle Hours"].toFixed(2)}</td>
-                  <td>{row["Meeting Hours"].toFixed(2)}</td>
-                  <td>{row["No Feeding Hours"].toFixed(2)}</td>
-                  <td>{row["Maintenance Hours"].toFixed(2)}</td>
-                  <td>{row["Rework Hours"]?.toFixed(2) || '0.00'}</td>
-                  <td>{row["Needle Break Hours"]?.toFixed(2) || '0.00'}</td>
-                  <td>{row["Productive Time in %"].toFixed(2)}%</td>
-                  <td>{row["NPT in %"].toFixed(2)}%</td>
-                  <td>{row["Sewing Speed"].toFixed(2)}</td>
-                  <td>{row["Stitch Count"].toFixed(2)}</td> 
-                  <td>{row["Needle Runtime"].toFixed(2)}</td>
+                  <td>{formatToHHMM(row["Total Hours"])}</td>
+                  <td>{formatToHHMM(row["Sewing Hours"])}</td>
+                  <td>{formatToHHMM(row["Idle Hours"])}</td>
+                  <td>{formatToHHMM(row["Meeting Hours"])}</td>
+                  <td>{formatToHHMM(row["No Feeding Hours"])}</td>
+                  <td>{formatToHHMM(row["Maintenance Hours"])}</td>
+                  <td>{formatToHHMM(row["Rework Hours"])}</td>
+                  <td>{formatToHHMM(row["Needle Break Hours"])}</td>
+                  <td>{safeToFixed(row["Productive Time in %"])}%</td>
+                  <td>{safeToFixed(row["NPT in %"])}%</td>
+                  <td>{safeToFixed(row["Sewing Speed"])}</td>
+                  <td>{safeToFixed(row["Stitch Count"])}</td> 
+                  <td>{formatToHHMM(row["Needle Runtime"])}</td>
                 </tr>
               ))}
             </tbody>
@@ -420,37 +447,30 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
       <div className="top-indicators">
         <div className="indicator">
           <h4><FaTshirt /> Total Sewing Hours</h4>
-          <p>{reportData.totalProductionHours.toFixed(2)} Hrs</p>
+          <p>{formatToHHMM(reportData.totalProductionHours)} Hrs</p>
         </div>
         <div className="indicator">
           <h4><FaTools /> Total Non-Production Hours</h4>
-          <p>{reportData.totalNonProductionHours.toFixed(2)} Hrs</p>
+          <p>{formatToHHMM(reportData.totalNonProductionHours)} Hrs</p>
         </div>
         <div className="indicator">
           <h4><FaClock /> Total Hours</h4>
-          <p>{reportData.totalHours?.toFixed(2) || '0.00'} Hrs</p>
+          <p>{formatToHHMM(reportData.totalHours)} Hrs</p>
         </div>
-        <div className="indicator">
-          <h4>Rework Hours</h4>
-          <p>{reportData.totalReworkHours?.toFixed(2) || '0.00'} Hrs</p>
-        </div>
-        <div className="indicator">
-          <h4>Needle Break Hours</h4>
-          <p>{reportData.totalNeedleBreakHours?.toFixed(2) || '0.00'} Hrs</p>
-        </div>
+       
       </div>
      
       <div className="summary-tiles">
         <div className="tile production-percentage">
-          <p>{reportData.productionPercentage.toFixed(2)}%</p>
+          <p>{safeToFixed(reportData.productionPercentage)}%</p>
           <span>Production Percentage</span>
         </div>
         <div className="tile average-speed">
-          <p>{reportData.averageSewingSpeed.toFixed(2)}</p>
+          <p>{safeToFixed(reportData.averageSewingSpeed)}</p>
           <span>Average Sewing Speed</span>
         </div>
         <div className="tile needle-runtime-percentage">
-          <p>{reportData.needleRuntimePercentage.toFixed(2)}%</p>
+          <p>{safeToFixed(reportData.needleRuntimePercentage)}%</p>
           <span>Needle Runtime Percentage</span>
         </div>
       </div>
@@ -475,45 +495,47 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
                   ))}
                 </Pie>
                 <Tooltip 
-                  formatter={(value) => value.toFixed(2) + " Hrs"} 
+                  formatter={(value) => safeToFixed(value) + " Hrs"} 
                   labelFormatter={(_, payload) => payload[0]?.name || ""}
                 />
               </PieChart>
             </ResponsiveContainer>
           </div>
+          {/* Custom Legend */}
+        
           <div className="total-hours" style={{ textAlign: 'center', marginTop: '10px' }}>
-            <strong>Total Hours: {totalTodayHours.toFixed(2)} Hrs</strong>
+            <strong>Total Hours: {formatToHHMM(totalTodayHours)} Hrs</strong>
           </div>
         </div>
 
         <div className="hour-breakdown">
           <div className="hour-box">
             <span className="dot production"></span>
-            <p>{reportData.todaySewingHours.toFixed(2)} Hrs: Sewing Hours</p>
+            <p>{formatToHHMM(reportData.todaySewingHours)} Hrs: Sewing Hours</p>
           </div>
           <div className="hour-box">
             <span className="dot non-production"></span>
-            <p>{reportData.todayNoFeedingHours.toFixed(2)} Hrs: No Feeding Hours</p>
+            <p>{formatToHHMM(reportData.todayNoFeedingHours)} Hrs: No Feeding Hours</p>
           </div>
           <div className="hour-box">
             <span className="dot idle"></span>
-            <p>{reportData.todayMaintenanceHours.toFixed(2)} Hrs: Maintenance Hours</p>
+            <p>{formatToHHMM(reportData.todayMaintenanceHours)} Hrs: Maintenance Hours</p>
           </div>
           <div className="hour-box">
             <span className="dot meeting"></span>
-            <p>{reportData.todayMeetingHours.toFixed(2)} Hrs: Meeting Hours</p>
+            <p>{formatToHHMM(reportData.todayMeetingHours)} Hrs: Meeting Hours</p>
           </div>
           <div className="hour-box">
             <span className="dot no-feeding"></span>
-            <p>{reportData.todayIdleHours.toFixed(2)} Hrs: Idle Hours</p>
+            <p>{formatToHHMM(reportData.todayIdleHours)} Hrs: Idle Hours</p>
           </div>
           <div className="hour-box">
             <span className="dot rework"></span>
-            <p>{reportData.todayReworkHours?.toFixed(2) || '0.00'} Hrs: Rework Hours</p>
+            <p>{formatToHHMM(reportData.todayReworkHours)} Hrs: Rework Hours</p>
           </div>
           <div className="hour-box">
             <span className="dot needle-break"></span>
-            <p>{reportData.todayNeedleBreakHours?.toFixed(2) || '0.00'} Hrs: Needle Break Hours</p>
+            <p>{formatToHHMM(reportData.todayNeedleBreakHours)} Hrs: Needle Break Hours</p>
           </div>
         </div>
       </div>

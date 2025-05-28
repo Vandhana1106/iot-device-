@@ -7,21 +7,18 @@ const SUMMARY_TABLE_HEADS = [
   { label: "Date", key: "Date" },
   { label: "Machine ID", key: "Machine ID" },
   { label: "Sewing Hours (PT)", key: "Sewing Hours (PT)" },
-  { label: "Sewing Operation Count", key: "Sewing Hours (PT)" },
-  { label: "Sewing Skip Count", key: "Sewing Hours (PT)" },
-  { label: "Rework Operation Count", key: "Sewing Hours (PT)" },
-  { label: "Rework Stitch Count", key: "Sewing Hours (PT)" },
-
-  { label: "Needle Break Hours", key: "No Feeding Hours" },
-  { label: "Rework Hours", key: "Meeting Hours" },
+  { label: "No Feeding Hours", key: "No Feeding Hours" },
+  { label: "Meeting Hours", key: "Meeting Hours" },
   { label: "Maintenance Hours", key: "Maintenance Hours" },
   { label: "Idle Hours", key: "Idle Hours" },
+  { label: "Rework Hours", key: "Rework Hours" }, // Added
+  { label: "Needle Break Hours", key: "Needle Break Hours" }, // Added
   { label: "Total Hours", key: "Total Hours" },
   { label: "PT %", key: "Productive Time (PT) %" },
   { label: "NPT %", key: "Non-Productive Time (NPT) %" },
-
-  { label: "Operation Count", key: "Stitch Count" },
-  { label: "Skip Count", key: "Needle Runtime" }
+  { label: "Sewing Speed", key: "Sewing Speed" },
+  { label: "Stitch Count", key: "Stitch Count" },
+  { label: "Needle Runtime", key: "Needle Runtime" }
 ];
 
 const DETAILED_TABLE_HEADS = [
@@ -34,11 +31,12 @@ const DETAILED_TABLE_HEADS = [
   { label: "End Time", key: "END_TIME" },
   { label: "Mode", key: "MODE" },
   { label: "Mode Description", key: "mode_description" },
-  { label: "Operation Count", key: "STITCH_COUNT" },
-  { label: "Skip Count", key: "NEEDLE_RUNTIME" },
+  { label: "Stitch Count", key: "STITCH_COUNT" },
+  { label: "Needle Runtime", key: "NEEDLE_RUNTIME" },
   { label: "Needle Stop Time", key: "NEEDLE_STOPTIME" },
-  { label: "Device ID", key: "DEVICE_ID" },
-  { label: "Reserve", key: "RESERVE" },
+  { label: "Duration", key: "DEVICE_ID" },
+  { label: "SPM", key: "RESERVE" },
+  { label: "Calculation Value", key: "calculation_value" },
   { label: "TX Log ID", key: "Tx_LOGID" },
   { label: "STR Log ID", key: "Str_LOGID" },
   { label: "Created At", key: "created_at" }
@@ -115,6 +113,8 @@ const AllMachinesReport = ({ reportData = [], fromDate, toDate, detailedData = [
     acc.totalMeetingHours += machine.totalNonProductiveTime?.breakdown?.meetingHours || 0;
     acc.totalMaintenanceHours += machine.totalNonProductiveTime?.breakdown?.maintenanceHours || 0;
     acc.totalIdleHours += machine.totalNonProductiveTime?.breakdown?.idleHours || 0;
+    acc.totalReworkHours += machine.totalNonProductiveTime?.breakdown?.reworkHours || 0;
+    acc.totalNeedleBreakHours += machine.totalNonProductiveTime?.breakdown?.needleBreakHours || 0;
     return acc;
   }, {
     totalHours: 0,
@@ -123,7 +123,9 @@ const AllMachinesReport = ({ reportData = [], fromDate, toDate, detailedData = [
     totalNoFeedingHours: 0,
     totalMeetingHours: 0,
     totalMaintenanceHours: 0,
-    totalIdleHours: 0
+    totalIdleHours: 0,
+    totalReworkHours: 0,
+    totalNeedleBreakHours: 0
   }) : {
     totalHours: 0,
     totalProductiveHours: 0,
@@ -131,7 +133,9 @@ const AllMachinesReport = ({ reportData = [], fromDate, toDate, detailedData = [
     totalNoFeedingHours: 0,
     totalMeetingHours: 0,
     totalMaintenanceHours: 0,
-    totalIdleHours: 0
+    totalIdleHours: 0,
+    totalReworkHours: 0,
+    totalNeedleBreakHours: 0
   };
 
   const averageProductivePercentage = totals.totalHours > 0 ?
@@ -153,45 +157,15 @@ const AllMachinesReport = ({ reportData = [], fromDate, toDate, detailedData = [
         DETAILED_TABLE_HEADS.map(head =>
           head.key === "serial_number" ? index + 1 :
             head.key === "created_at" && row[head.key] ? formatConsistentDateTime(row[head.key]) :
-              row[head.key] || ""
+              head.key === "calculation_value" && row[head.key] !== undefined && row[head.key] !== null ? row[head.key] :
+                row[head.key] || ""
         )
       )
-      : processedData.flatMap(machine => machine.tableData || []).map(row => {
-          // Find the corresponding detailed data for the current row
-          const detailedItem = filteredDetailedData.find(
-            item => item.MACHINE_ID === row["Machine ID"] && 
-                   new Date(item.DATE).toLocaleDateString() === new Date(row.Date).toLocaleDateString()
-          );
-          
-          // Default values for the conditional fields
-          let sewingOperationCount = "0";
-          let sewingSkipCount = "0";
-          let reworkOperationCount = "0";
-          let reworkStitchCount = "0";
-          
-          // Set values based on the mode
-          if (detailedItem) {
-            const mode = parseInt(detailedItem.MODE);
-            
-            if (mode === 1) {
-              // For mode 1 (Sewing), set the sewing values and keep rework values as zero
-              sewingOperationCount = detailedItem.STITCH_COUNT || "0";
-              sewingSkipCount = detailedItem.NEEDLE_RUNTIME || "0";
-            } else if (mode === 3) {
-              // For mode 3 (Rework), set the rework values and keep sewing values as zero
-              reworkOperationCount = detailedItem.STITCH_COUNT || "0";
-              reworkStitchCount = detailedItem.NEEDLE_RUNTIME || "0";
-            }
-          }
-          
-          return SUMMARY_TABLE_HEADS.map(head => {
-            if (head.label === "Sewing Operation Count") return sewingOperationCount;
-            if (head.label === "Sewing Skip Count") return sewingSkipCount;
-            if (head.label === "Rework Operation Count") return reworkOperationCount;
-            if (head.label === "Rework Stitch Count") return reworkStitchCount;
-            return row[head.key]?.toFixed ? row[head.key].toFixed(2) : row[head.key] || "";
-          });
-        });
+      : processedData.flatMap(machine => machine.tableData || []).map(row =>
+        SUMMARY_TABLE_HEADS.map(head =>
+          row[head.key]?.toFixed ? row[head.key].toFixed(2) : row[head.key] || ""
+        )
+      );
 
     const csvContent = [
       headers.join(','),
@@ -219,54 +193,20 @@ const AllMachinesReport = ({ reportData = [], fromDate, toDate, detailedData = [
             ${DETAILED_TABLE_HEADS.map(head => `
               <td>${
                 head.key === "serial_number" ? index + 1 :
-                  head.key === "created_at" && row[head.key] ? formatConsistentDateTime(row[head.key]) :
-                    row[head.key] || ''
+                head.key === "created_at" && row[head.key] ? formatConsistentDateTime(row[head.key]) :
+                head.key === "calculation_value" && row[head.key] !== undefined && row[head.key] !== null ? row[head.key] :
+                row[head.key] || ''
               }</td>
             `).join('')}
           </tr>
         `).join('')
-      : processedData.flatMap(machine => machine.tableData || []).map(row => {
-          // Find the corresponding detailed data for the current row
-          const detailedItem = filteredDetailedData.find(
-            item => item.MACHINE_ID === row["Machine ID"] && 
-                  new Date(item.DATE).toLocaleDateString() === new Date(row.Date).toLocaleDateString()
-          );
-          
-          // Default values for the conditional fields
-          let sewingOperationCount = "0";
-          let sewingSkipCount = "0";
-          let reworkOperationCount = "0";
-          let reworkStitchCount = "0";
-          
-          // Set values based on the mode
-          if (detailedItem) {
-            const mode = parseInt(detailedItem.MODE);
-            
-            if (mode === 1) {
-              // For mode 1 (Sewing), set the sewing values and keep rework values as zero
-              sewingOperationCount = detailedItem.STITCH_COUNT || "0";
-              sewingSkipCount = detailedItem.NEEDLE_RUNTIME || "0";
-            } else if (mode === 3) {
-              // For mode 3 (Rework), set the rework values and keep sewing values as zero
-              reworkOperationCount = detailedItem.STITCH_COUNT || "0";
-              reworkStitchCount = detailedItem.NEEDLE_RUNTIME || "0";
-            }
-          }
-          
-          return `
+      : processedData.flatMap(machine => machine.tableData || []).map(row => `
           <tr>
-            ${SUMMARY_TABLE_HEADS.map(head => {
-              let value = '';
-              if (head.label === "Sewing Operation Count") value = sewingOperationCount;
-              else if (head.label === "Sewing Skip Count") value = sewingSkipCount;
-              else if (head.label === "Rework Operation Count") value = reworkOperationCount;
-              else if (head.label === "Rework Stitch Count") value = reworkStitchCount;
-              else value = row[head.key]?.toFixed ? row[head.key].toFixed(2) : row[head.key] || '';
-              
-              return `<td>${value}</td>`;
-            }).join('')}
+            ${SUMMARY_TABLE_HEADS.map(head => `
+              <td>${row[head.key]?.toFixed ? row[head.key].toFixed(2) : row[head.key] || ''}</td>
+            `).join('')}
           </tr>
-        `}).join('');
+        `).join('');
 
     const htmlContent = `<!DOCTYPE html>
       <html>
@@ -284,7 +224,7 @@ const AllMachinesReport = ({ reportData = [], fromDate, toDate, detailedData = [
       </head>
       <body>
         <h1>${showTableView ? 'All Machines Raw Data Report' : 'All Machines Summary Report'}</h1>
-        <div class="report-info">
+        <div className="report-info">
           <p><strong>Generated on:</strong> ${new Date().toLocaleString()}</p>
           ${fromDate ? `<p><strong>From Date:</strong> ${new Date(fromDate).toLocaleDateString()}</p>` : ''}
           ${toDate ? `<p><strong>To Date:</strong> ${new Date(toDate).toLocaleDateString()}</p>` : ''}
@@ -312,7 +252,9 @@ const AllMachinesReport = ({ reportData = [], fromDate, toDate, detailedData = [
     { name: "No Feeding Hours", value: totals.totalNoFeedingHours, color: "#8E44AD" },
     { name: "Meeting Hours", value: totals.totalMeetingHours, color: "#E74C3C" },
     { name: "Maintenance Hours", value: totals.totalMaintenanceHours, color: "#118374" },
-    { name: "Idle Hours", value: totals.totalIdleHours, color: "#F8A723" }
+    { name: "Idle Hours", value: totals.totalIdleHours, color: "#F8A723" },
+    { name: "Rework", value: totals.totalReworkHours, color: "#FF6F61" }, // Updated color
+    { name: "Needle Break", value: totals.totalNeedleBreakHours, color: "#00B8D9" } // Updated color
   ].filter(item => item.value > 0);
 
   if (!reportData && !detailedData) {
@@ -421,6 +363,7 @@ const AllMachinesReport = ({ reportData = [], fromDate, toDate, detailedData = [
                       <td>{dataItem.NEEDLE_STOPTIME || '-'}</td>
                       <td>{dataItem.DEVICE_ID || '-'}</td>
                       <td>{dataItem.RESERVE || '-'}</td>
+                      <td>{dataItem.calculation_value !== undefined && dataItem.calculation_value !== null ? dataItem.calculation_value : '-'}</td>
                       <td>{dataItem.Tx_LOGID || '-'}</td>
                       <td>{dataItem.Str_LOGID || '-'}</td>
                       <td>{dataItem.created_at ? formatConsistentDateTime(dataItem.created_at) : '-'}</td>
@@ -509,55 +452,25 @@ const AllMachinesReport = ({ reportData = [], fromDate, toDate, detailedData = [
             </thead>
             <tbody>
               {processedData && processedData.flatMap(machine => machine.tableData || []).length > 0 ? (
-                processedData.flatMap(machine => machine.tableData || []).map((row, index) => {
-                  // Find the corresponding detailed data for the current row
-                  const detailedItem = filteredDetailedData.find(
-                    item => item.MACHINE_ID === row["Machine ID"] && 
-                           new Date(item.DATE).toLocaleDateString() === new Date(row.Date).toLocaleDateString()
-                  );
-                  
-                  // Default values for the conditional fields
-                  let sewingOperationCount = "0";
-                  let sewingSkipCount = "0";
-                  let reworkOperationCount = "0";
-                  let reworkStitchCount = "0";
-                  
-                  // Set values based on the mode
-                  if (detailedItem) {
-                    const mode = parseInt(detailedItem.MODE);
-                    
-                    if (mode === 1) {
-                      // For mode 1 (Sewing), set the sewing values and keep rework values as zero
-                      sewingOperationCount = detailedItem.STITCH_COUNT || "0";
-                      sewingSkipCount = detailedItem.NEEDLE_RUNTIME || "0";
-                    } else if (mode === 3) {
-                      // For mode 3 (Rework), set the rework values and keep sewing values as zero
-                      reworkOperationCount = detailedItem.STITCH_COUNT || "0";
-                      reworkStitchCount = detailedItem.NEEDLE_RUNTIME || "0";
-                    }
-                  }
-                  
-                  return (
-                    <tr key={index}>
-                      <td>{row.Date || '-'}</td>
-                      <td>{row["Machine ID"] || '-'}</td>
-                      <td>{row["Sewing Hours (PT)"]?.toFixed(2) || '0.00'}</td>
-                      <td>{sewingOperationCount}</td>
-                      <td>{sewingSkipCount}</td>
-                      <td>{reworkOperationCount}</td>
-                      <td>{reworkStitchCount}</td>
-                      <td>{row["No Feeding Hours"]?.toFixed(2) || '0.00'}</td>
-                      <td>{row["Meeting Hours"]?.toFixed(2) || '0.00'}</td>
-                      <td>{row["Maintenance Hours"]?.toFixed(2) || '0.00'}</td>
-                      <td>{row["Idle Hours"]?.toFixed(2) || '0.00'}</td>
-                      <td>{row["Total Hours"]?.toFixed(2) || '0.00'}</td>
-                      <td>{row["Productive Time (PT) %"]?.toFixed(2) || '0.00'}%</td>
-                      <td>{row["Non-Productive Time (NPT) %"]?.toFixed(2) || '0.00'}%</td>
-                      <td>{row["Stitch Count"] || '0'}</td>
-                      <td>{row["Needle Runtime"] || '0'}</td>
-                    </tr>
-                  );
-                })
+                processedData.flatMap(machine => machine.tableData || []).map((row, index) => (
+                  <tr key={index}>
+                    <td>{row.Date || '-'}</td>
+                    <td>{row["Machine ID"] || '-'}</td>
+                    <td>{row["Sewing Hours (PT)"]?.toFixed(2) || '0.00'}</td>
+                    <td>{row["No Feeding Hours"]?.toFixed(2) || '0.00'}</td>
+                    <td>{row["Meeting Hours"]?.toFixed(2) || '0.00'}</td>
+                    <td>{row["Maintenance Hours"]?.toFixed(2) || '0.00'}</td>
+                    <td>{row["Idle Hours"]?.toFixed(2) || '0.00'}</td>
+                    <td>{row["Rework Hours"]?.toFixed(2) || '0.00'}</td> {/* Added */}
+                    <td>{row["Needle Break Hours"]?.toFixed(2) || '0.00'}</td> {/* Added */}
+                    <td>{row["Total Hours"]?.toFixed(2) || '0.00'}</td>
+                    <td>{row["Productive Time (PT) %"]?.toFixed(2) || '0.00'}%</td>
+                    <td>{row["Non-Productive Time (NPT) %"]?.toFixed(2) || '0.00'}%</td>
+                    <td>{row["Sewing Speed"]?.toFixed(2) || '0.00'}</td>
+                    <td>{row["Stitch Count"] || '0'}</td>
+                    <td>{row["Needle Runtime"]?.toFixed(2) || '0.00'}</td>
+                  </tr>
+                ))
               ) : (
                 <tr>
                   <td colSpan={SUMMARY_TABLE_HEADS.length} className="no-data">
@@ -649,6 +562,14 @@ const AllMachinesReport = ({ reportData = [], fromDate, toDate, detailedData = [
           <div className="hour-box">
             <span className="dot idle"></span>
             <p>{totals.totalIdleHours.toFixed(2)} Hrs: Idle Time</p>
+          </div>
+          <div className="hour-box">
+            <span className="dot rework"></span>
+            <p>{totals.totalReworkHours.toFixed(2)} Hrs: Rework</p>
+          </div>
+          <div className="hour-box">
+            <span className="dot needle-break"></span>
+            <p>{totals.totalNeedleBreakHours.toFixed(2)} Hrs: Needle Break</p>
           </div>
         </div>
       </div>

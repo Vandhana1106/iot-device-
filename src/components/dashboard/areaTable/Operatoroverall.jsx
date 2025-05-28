@@ -41,6 +41,19 @@ const formatDateForDisplay = (dateString) => {
   });
 };
 
+// Utility to format decimal hours or seconds to HH:MM
+const formatToHHMM = (value, isSeconds = false) => {
+  let totalMinutes;
+  if (isSeconds) {
+    totalMinutes = Math.round(value / 60);
+  } else {
+    totalMinutes = Math.round(value * 60);
+  }
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+};
+
 const Operatoroverall = () => {
   const [tableData, setTableData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
@@ -168,6 +181,10 @@ const Operatoroverall = () => {
   };
 
   const handleDateFilterApply = () => {
+    if (fromDate && toDate && new Date(fromDate) > new Date(toDate)) {
+      alert('From date must be earlier than or equal to To date.');
+      return;
+    }
     if (fromDate || toDate) {
       fetchData();
     }
@@ -434,15 +451,33 @@ const Operatoroverall = () => {
                 <tbody>
                   {currentRows.map((dataItem, index) => (
                     <tr key={index}>
-                      {TABLE_HEADS.map((th, thIndex) => (
-                        <td key={thIndex}>
-                          {th.key === "serial_number"
+                      {TABLE_HEADS.map((th, thIndex) => {
+                        let value =
+                          th.key === "serial_number"
                             ? indexOfFirstRow + index + 1
                             : th.key === "created_at" && dataItem[th.key]
                             ? formatConsistentDateTime(dataItem[th.key])
-                            : dataItem[th.key] || "-"}
-                        </td>
-                      ))}
+                            : dataItem[th.key] || "-";
+
+                        // Format time fields to HH:MM
+                        if ([
+                          "Total Hours",
+                          "Sewing Hours",
+                          "Idle Hours",
+                          "Meeting Hours",
+                          "No Feeding Hours",
+                          "Maintenance Hours",
+                          "Needle Runtime"
+                        ].includes(th.label) && value !== "-") {
+                          // If value is in seconds (for Needle Runtime), pass isSeconds=true
+                          if (th.label === "Needle Runtime") {
+                            value = formatToHHMM(Number(value), true);
+                          } else {
+                            value = formatToHHMM(Number(value));
+                          }
+                        }
+                        return <td key={thIndex}>{value}</td>;
+                      })}
                     </tr>
                   ))}
                 </tbody>

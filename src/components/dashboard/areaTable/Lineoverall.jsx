@@ -30,8 +30,9 @@ const formatDateTime = (dateTimeString) => {
   if (!dateTimeString) return "-";
   const dateTime = new Date(dateTimeString);
   const formattedDate = dateTime.toISOString().split("T")[0];
-  const formattedTime = dateTime.toTimeString().split(" ")[0];
-  return `${formattedDate} ${formattedTime}.${dateTime.getMilliseconds()}`;
+  const hours = String(dateTime.getHours()).padStart(2, '0');
+  const minutes = String(dateTime.getMinutes()).padStart(2, '0');
+  return `${formattedDate} ${hours}:${minutes}`;
 };
 
 const formatDateForDisplay = (dateString) => {
@@ -71,19 +72,16 @@ const formatConsistentDateTime = (dateTimeString) => {
   if (!dateTimeString) return "-";
   try {
     // If the date is already in the correct format, return it as-is
-    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(dateTimeString)) {
+    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(dateTimeString)) {
       return dateTimeString;
     }
-    
-    // Otherwise, parse it and format it correctly
     const dateTime = new Date(dateTimeString);
     const year = dateTime.getFullYear();
     const month = String(dateTime.getMonth() + 1).padStart(2, '0');
     const day = String(dateTime.getDate()).padStart(2, '0');
     const hours = String(dateTime.getHours()).padStart(2, '0');
     const minutes = String(dateTime.getMinutes()).padStart(2, '0');
-    const seconds = String(dateTime.getSeconds()).padStart(2, '0');
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
   } catch (e) {
     console.error("Date formatting error:", e);
     return dateTimeString;
@@ -124,7 +122,7 @@ const Lineoverall = () => {
     params.append('from_date', fromDate);
     params.append('to_date', toDate);
 
-    fetch(`https://oceanatlantic.pinesphere.co.in/api/logs/line-numbers/?${params}`)
+    fetch(`http://localhost:8000/api/logs/line-numbers/?${params}`)
       .then((response) => {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -161,7 +159,7 @@ const Lineoverall = () => {
     params.append('from_date', fromDate);
     params.append('to_date', toDate);
 
-    fetch(`https://oceanatlantic.pinesphere.co.in/api/logs/filter/?${params}`)
+    fetch(`http://localhost:8000/api/logs/filter/?${params}`)
       .then((response) => response.json())
       .then((data) => {
         console.log("Fetched data:", data);
@@ -262,7 +260,7 @@ const Lineoverall = () => {
     params.append('from_date', fromDate);
     params.append('to_date', toDate);
 
-    fetch(`https://oceanatlantic.pinesphere.co.in/api/line-reports/all/?${params}`)
+    fetch(`http://localhost:8000/api/line-reports/all/?${params}`)
       .then(response => response.json())
       .then(data => {
         setAllLinesReportData(data.allLinesReport || []);

@@ -19,11 +19,22 @@ const TABLE_HEADS = [
   { label: "Needle Stop Time", key: "NEEDLE_STOPTIME" },
   { label: "Duration", key: "DEVICE_ID" },
   { label: "SPM", key: "RESERVE" },
-  { label: "Calculation", key: "calculation" },
+  { label: "Calculation Value", key: "calculation_value" },
   { label: "TX Log ID", key: "Tx_LOGID" },
   { label: "STR Log ID", key: "Str_LOGID" },
   { label: "Created At", key: "created_at" },
 ];
+
+// Add a mapping for mode descriptions including new modes 6 and 7
+const MODE_DESCRIPTIONS = {
+  1: "Sewing",
+  2: "Idle",
+  3: "No Feeding",
+  4: "Meeting",
+  5: "Maintenance",
+  6: "Rework",
+  7: "Needle Break"
+};
 
 const formatDateTime = (dateTimeString) => {
   const dateTime = new Date(dateTimeString);
@@ -43,6 +54,26 @@ const formatDateForDisplay = (dateString) => {
 };
 
 const calculateValue = (item) => {
+  // List of valid operator IDs
+  const validOperatorIDs = [
+    "3658143475", "3660306819", "3660499379", "3659262979",
+    "3661924643", "3661191843", "3653098739", "3659613555",
+    "3658619763", "3660851603", "3652395075", "3653353699",
+    "3654730995", "3660111891", "3660850451", "3661210371",
+    "3661215379", "3660650483", "3655499331", "3660137427",
+    "3655053075", "3655015683", "3660405379", "3662024435",
+    "3793893139"
+  ];
+
+  // Check if OPERATOR_ID is missing, invalid or equals 0
+  if (!item.OPERATOR_ID || 
+      item.OPERATOR_ID === "0" || 
+      item.OPERATOR_ID === 0 || 
+      !validOperatorIDs.includes(item.OPERATOR_ID.toString())) {
+    return 0;
+  }
+
+  // If operator ID is 0 and mode is 2, return 0
   if (item.OPERATOR_ID === 0 && item.MODE === 2) {
     return 0;
   }
@@ -50,21 +81,31 @@ const calculateValue = (item) => {
   const startTime = item.START_TIME ? new Date(`1970-01-01T${item.START_TIME}`) : null;
   const endTime = item.END_TIME ? new Date(`1970-01-01T${item.END_TIME}`) : null;
 
-  if (!startTime || !endTime) return 1;
+  // If we can't determine times, return 0 instead of 1
+  if (!startTime || !endTime) return 0;
 
-  const isBreakTime1 = 
-    (startTime >= new Date(`1970-01-01T10:30:00`) && 
-     endTime <= new Date(`1970-01-01T10:40:00`));
+  // Check if outside working hours (8:25 AM to 7:35 PM)
+  const workStartTime = new Date('1970-01-01T08:25:00');
+  const workEndTime = new Date('1970-01-01T19:35:00');
+  const outsideWorkingHours = startTime < workStartTime || endTime > workEndTime;
+  
+  if (outsideWorkingHours) {
+    return 0;
+  }
 
-  const isBreakTime2 = 
-    (startTime >= new Date(`1970-01-01T13:20:00`) && 
-     endTime <= new Date(`1970-01-01T14:00:00`));
+  // Define break periods
+  const breakPeriods = [
+    { start: new Date(`1970-01-01T10:30:00`), end: new Date(`1970-01-01T10:40:00`) },
+    { start: new Date(`1970-01-01T13:20:00`), end: new Date(`1970-01-01T14:00:00`) },
+    { start: new Date(`1970-01-01T16:20:00`), end: new Date(`1970-01-01T16:30:00`) }
+  ];
 
-  const isBreakTime3 = 
-    (startTime >= new Date(`1970-01-01T16:20:00`) && 
-     endTime <= new Date(`1970-01-01T16:30:00`));
+  // Check if the time falls within any break period
+  const isWithinBreakPeriod = breakPeriods.some(
+    (breakPeriod) => startTime >= breakPeriod.start && endTime <= breakPeriod.end
+  );
 
-  return (isBreakTime1 || isBreakTime2 || isBreakTime3) ? 0 : 1;
+  return isWithinBreakPeriod ? 0 : 1;
 };
 
 const MachineOverall = () => {
@@ -97,7 +138,7 @@ const MachineOverall = () => {
     
     setIsLoading(true);
     try {
-      let url = `https://oceanatlantic.pinesphere.co.in/api/logs/?`;
+      let url = `http://localhost:8000/api/logs/?`;
       if (fromDate) url += `from_date=${fromDate}&`;
       if (toDate) url += `to_date=${toDate}`;
       
@@ -105,7 +146,13 @@ const MachineOverall = () => {
       const data = await response.json();
       
       if (Array.isArray(data)) {
-        const sortedData = data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        // Add calculation_value to each item
+        const dataWithCalculation = data.map(item => ({
+          ...item,
+          calculation_value: calculateValue(item)
+        }));
+        
+        const sortedData = dataWithCalculation.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
         setTableData(sortedData);
         setDetailedData(sortedData);
         setFilteredData([]);
@@ -147,8 +194,19 @@ const MachineOverall = () => {
       return;
     }
 
-    let filtered = [...tableData];
-    let filteredDetailed = [...detailedData];
+    // Ensure calculation_value is set for all records
+    const tableDataWithCalculation = tableData.map(item => ({
+      ...item,
+      calculation_value: item.calculation_value ?? calculateValue(item)
+    }));
+    
+    const detailedDataWithCalculation = detailedData.map(item => ({
+      ...item,
+      calculation_value: item.calculation_value ?? calculateValue(item)
+    }));
+    
+    let filtered = [...tableDataWithCalculation];
+    let filteredDetailed = [...detailedDataWithCalculation];
     let filterDescription = [];
     
     if (selectedMachineId) {
@@ -255,7 +313,7 @@ const MachineOverall = () => {
       if (fromDate) params.append('from_date', fromDate);
       if (toDate) params.append('to_date', toDate);
 
-      const response = await fetch(`https://oceanatlantic.pinesphere.co.in/api/api/machines/all/reports/?${params}`);
+      const response = await fetch(`http://localhost:8000/api/api/machines/all/reports/?${params}`);
       const data = await response.json();
       
       setAllMachinesReportData(data.allMachinesReport || []);
@@ -341,7 +399,7 @@ const MachineOverall = () => {
     const rows = dataToExport.map((row, index) => {
       const rowWithCalculation = {
         ...row,
-        calculation: calculateValue(row)
+        calculation_value: calculateValue(row)
       };
       
       return headers.map(header => {
@@ -352,6 +410,9 @@ const MachineOverall = () => {
         }
         if (key === "created_at" && rowWithCalculation[key]) {
           return formatConsistentDateTime(rowWithCalculation[key]);
+        }
+        if (key === "calculation_value") {
+          return rowWithCalculation.calculation_value;
         }
         return rowWithCalculation[key] || "";
       });
@@ -376,7 +437,7 @@ const MachineOverall = () => {
     const rows = dataToExport.map((row, index) => {
       const rowWithCalculation = {
         ...row,
-        calculation: calculateValue(row)
+        calculation_value: calculateValue(row)
       };
       
       return `
@@ -389,6 +450,8 @@ const MachineOverall = () => {
             value = index + 1;
           } else if (key === "created_at" && rowWithCalculation[key]) {
             value = formatConsistentDateTime(rowWithCalculation[key]);
+          } else if (key === "calculation_value") {
+            value = rowWithCalculation.calculation_value;
           } else {
             value = rowWithCalculation[key] || "";
           }
@@ -587,7 +650,7 @@ const MachineOverall = () => {
                     currentDetailedRows.map((dataItem, index) => {
                       const itemWithCalculation = {
                         ...dataItem,
-                        calculation: calculateValue(dataItem)
+                        calculation_value: calculateValue(dataItem)
                       };
                       
                       return (
@@ -598,6 +661,10 @@ const MachineOverall = () => {
                                 ? index + 1
                                 : th.key === "created_at" && itemWithCalculation[th.key]
                                 ? formatConsistentDateTime(itemWithCalculation[th.key])
+                                : th.key === "calculation_value"
+                                ? itemWithCalculation[th.key]
+                                : th.key === "mode_description"
+                                ? MODE_DESCRIPTIONS[itemWithCalculation["MODE"]] || itemWithCalculation["mode_description"] || "-"
                                 : itemWithCalculation[th.key] || "-"}
                             </td>
                           ))}
