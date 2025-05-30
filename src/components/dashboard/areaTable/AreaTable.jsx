@@ -56,14 +56,19 @@ const formatDateForDisplay = (dateString) => {
 const calculateValue = (item) => {
   // List of valid operator IDs
   const validOperatorIDs = [
-    "3658143475", "3660306819", "3660499379", "3659262979",
-    "3661924643", "3661191843", "3653098739", "3659613555",
-    "3658619763", "3660851603", "3652395075", "3653353699",
-    "3654730995", "3660111891", "3660850451", "3661210371",
-    "3661215379", "3660650483", "3655499331", "3660137427",
-    "3655053075", "3655015683", "3660405379", "3662024435",
-    "3793893139"
-  ];
+  "3658143475", "3660306819", "3660499379", "3659262979",
+  "3661924643", "3661191843", "3653098739", "3659613555",
+  "3658619763", "3660851603", "3652395075", "3653353699",
+  "3654730995", "3660111891", "3660850451", "3661210371",
+  "3661215379", "3660650483", "3655499331", "3660137427",
+  "3655053075", "3655015683", "3660405379", "3662024435",
+  "3793893139",
+
+  // Newly added Operator IDs
+  "3661139987", "3660575811", "3662245171", "3661270803",
+  "3660572579", "3660934899", "3661393987", "3655662323",
+  "3659679971", "3660802403"
+];
 
   // Check if OPERATOR_ID is missing, invalid or equals 0
   if (!item.OPERATOR_ID || 
@@ -138,7 +143,7 @@ const MachineOverall = () => {
     
     setIsLoading(true);
     try {
-      let url = `http://localhost:8000/api/logs/?`;
+      let url = `https://oceanatlantic.pinesphere.co.in/api/logs/?`;
       if (fromDate) url += `from_date=${fromDate}&`;
       if (toDate) url += `to_date=${toDate}`;
       
@@ -313,7 +318,7 @@ const MachineOverall = () => {
       if (fromDate) params.append('from_date', fromDate);
       if (toDate) params.append('to_date', toDate);
 
-      const response = await fetch(`http://localhost:8000/api/api/machines/all/reports/?${params}`);
+      const response = await fetch(`https://oceanatlantic.pinesphere.co.in/api/api/machines/all/reports/?${params}`);
       const data = await response.json();
       
       setAllMachinesReportData(data.allMachinesReport || []);

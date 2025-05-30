@@ -81,7 +81,7 @@ const MachineReportA = ({ machine_id, fromDate, toDate }) => {
         console.error("Error formatting to_date:", error);
         params.append('to_date', toDate);
       }
-    }    fetch(`http://localhost:8000/api/api/afl/machines/${machine_id}/reports/?${params}`)
+    }    fetch(`https://oceanatlantic.pinesphere.co.in/api/api/afl/machines/${machine_id}/reports/?${params}`)
       .then((response) => response.json())
       .then((data) => {
         console.log("API Response:", JSON.stringify(data).slice(0, 500)); // Log the first part of the response

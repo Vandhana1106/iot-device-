@@ -122,7 +122,7 @@ const Lineoverall = () => {
     params.append('from_date', fromDate);
     params.append('to_date', toDate);
 
-    fetch(`http://localhost:8000/api/logs/line-numbers/?${params}`)
+    fetch(`https://oceanatlantic.pinesphere.co.in/api/logs/line-numbers/?${params}`)
       .then((response) => {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -159,7 +159,7 @@ const Lineoverall = () => {
     params.append('from_date', fromDate);
     params.append('to_date', toDate);
 
-    fetch(`http://localhost:8000/api/logs/filter/?${params}`)
+    fetch(`https://oceanatlantic.pinesphere.co.in/api/logs/filter/?${params}`)
       .then((response) => response.json())
       .then((data) => {
         console.log("Fetched data:", data);
@@ -204,14 +204,20 @@ const Lineoverall = () => {
 
     // List of valid operator IDs
     const validOperatorIDs = [
-      "3658143475", "3660306819", "3660499379", "3659262979",
-      "3661924643", "3661191843", "3653098739", "3659613555",
-      "3658619763", "3660851603", "3652395075", "3653353699",
-      "3654730995", "3660111891", "3660850451", "3661210371",
-      "3661215379", "3660650483", "3655499331", "3660137427",
-      "3655053075", "3655015683", "3660405379", "3662024435",
-      "3793893139"
-    ];
+  "3658143475", "3660306819", "3660499379", "3659262979",
+  "3661924643", "3661191843", "3653098739", "3659613555",
+  "3658619763", "3660851603", "3652395075", "3653353699",
+  "3654730995", "3660111891", "3660850451", "3661210371",
+  "3661215379", "3660650483", "3655499331", "3660137427",
+  "3655053075", "3655015683", "3660405379", "3662024435",
+  "3793893139",
+
+  // Newly added Operator IDs
+  "3661139987", "3660575811", "3662245171", "3661270803",
+  "3660572579", "3660934899", "3661393987", "3655662323",
+  "3659679971", "3660802403"
+];
+
 
     // Check if OPERATOR_ID is missing, invalid or equals 0
     // This is to ensure only valid operators are considered
@@ -260,7 +266,7 @@ const Lineoverall = () => {
     params.append('from_date', fromDate);
     params.append('to_date', toDate);
 
-    fetch(`http://localhost:8000/api/line-reports/all/?${params}`)
+    fetch(`https://oceanatlantic.pinesphere.co.in/api/line-reports/all/?${params}`)
       .then(response => response.json())
       .then(data => {
         setAllLinesReportData(data.allLinesReport || []);
