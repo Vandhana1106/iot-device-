@@ -41,17 +41,40 @@ const formatDateForDisplay = (dateString) => {
   });
 };
 
-// Utility to format decimal hours or seconds to HH:MM
-const formatToHHMM = (value, isSeconds = false) => {
-  let totalMinutes;
-  if (isSeconds) {
-    totalMinutes = Math.round(value / 60);
+// Utility to convert decimal hours or "HH:MM" string to "H hours M minutes" format
+const formatHoursMinutes = (input) => {
+  if (input === null || input === undefined || input === "") return "-";
+  let hours = 0, minutes = 0;
+  if (typeof input === "string" && input.includes(":")) {
+    const [h, m] = input.split(":").map(Number);
+    if (!isNaN(h) && !isNaN(m)) {
+      hours = h;
+      minutes = m;
+    }
+  } else if (!isNaN(Number(input))) {
+    hours = Math.floor(Number(input));
+    minutes = Math.round((Number(input) - hours) * 60);
   } else {
-    totalMinutes = Math.round(value * 60);
+    return "-";
   }
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  return `${hours} hours${minutes > 0 ? ` ${minutes} minutes` : ''}`;
+};
+
+// Utility to convert seconds to "H hours M minutes" format
+const formatSecondsToHoursMinutes = (seconds) => {
+  if (isNaN(seconds) || seconds === null || seconds === undefined) return "-";
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.round((seconds % 3600) / 60);
+  return `${hours} hours${minutes > 0 ? ` ${minutes} minutes` : ''}`;
+};
+
+// Utility to parse "HH:MM" string to decimal hours
+const parseHHMMToDecimal = (hhmm) => {
+  if (typeof hhmm === "number") return hhmm;
+  if (!hhmm || typeof hhmm !== "string" || !hhmm.includes(":")) return 0;
+  const [h, m] = hhmm.split(":").map(Number);
+  if (isNaN(h) || isNaN(m)) return 0;
+  return h + m / 60;
 };
 
 const Operatoroverall = () => {
@@ -459,21 +482,23 @@ const Operatoroverall = () => {
                             ? formatConsistentDateTime(dataItem[th.key])
                             : dataItem[th.key] || "-";
 
-                        // Format time fields to HH:MM
+                        // Format time fields to "H hours M minutes" using parseHHMMToDecimal
                         if ([
                           "Total Hours",
                           "Sewing Hours",
                           "Idle Hours",
                           "Meeting Hours",
                           "No Feeding Hours",
-                          "Maintenance Hours",
-                          "Needle Runtime"
+                          "Maintenance Hours"
                         ].includes(th.label) && value !== "-") {
-                          // If value is in seconds (for Needle Runtime), pass isSeconds=true
-                          if (th.label === "Needle Runtime") {
-                            value = formatToHHMM(Number(value), true);
+                          value = formatHoursMinutes(parseHHMMToDecimal(value));
+                        } else if (th.label === "Needle Runtime" && value !== "-") {
+                          // If value is in seconds, keep as is; if in HH:MM, convert to seconds
+                          if (typeof value === "string" && value.includes(":")) {
+                            const [h, m] = value.split(":").map(Number);
+                            value = formatSecondsToHoursMinutes((h * 3600) + (m * 60));
                           } else {
-                            value = formatToHHMM(Number(value));
+                            value = formatSecondsToHoursMinutes(Number(value));
                           }
                         }
                         return <td key={thIndex}>{value}</td>;

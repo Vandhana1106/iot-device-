@@ -60,6 +60,35 @@ const formatConsistentDateTime = (dateTimeString) => {
   }
 };
 
+// Utility to convert seconds or decimal hours or "HH:MM" string to "H hours M minutes" format
+const formatHoursMinutes = (input) => {
+  if (input === null || input === undefined || input === "") return "-";
+  let hours = 0, minutes = 0;
+  if (typeof input === "string" && input.includes(":")) {
+    const [h, m] = input.split(":").map(Number);
+    if (!isNaN(h) && !isNaN(m)) {
+      hours = h;
+      minutes = m;
+    }
+  } else if (!isNaN(Number(input))) {
+    const num = Number(input);
+    if (num > 10000) { // treat as seconds if very large
+      hours = Math.floor(num / 3600);
+      minutes = Math.round((num % 3600) / 60);
+    } else {
+      const decimalHours = num;
+      hours = Math.floor(decimalHours);
+      minutes = Math.round((decimalHours - hours) * 60);
+    }
+  } else {
+    return "-";
+  }
+  if (hours === 0 && minutes === 0) return "0";
+  if (hours === 0) return `${minutes}m`;
+  if (minutes === 0) return `${hours}h`;
+  return `${hours}h ${minutes}m`;
+};
+
 const AllMachinesReport = ({ reportData = [], fromDate, toDate, detailedData = [] }) => {
   const [showTableView, setShowTableView] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -456,19 +485,19 @@ const AllMachinesReport = ({ reportData = [], fromDate, toDate, detailedData = [
                   <tr key={index}>
                     <td>{row.Date || '-'}</td>
                     <td>{row["Machine ID"] || '-'}</td>
-                    <td>{row["Sewing Hours (PT)"]?.toFixed(2) || '0.00'}</td>
-                    <td>{row["No Feeding Hours"]?.toFixed(2) || '0.00'}</td>
-                    <td>{row["Meeting Hours"]?.toFixed(2) || '0.00'}</td>
-                    <td>{row["Maintenance Hours"]?.toFixed(2) || '0.00'}</td>
-                    <td>{row["Idle Hours"]?.toFixed(2) || '0.00'}</td>
-                    <td>{row["Rework Hours"]?.toFixed(2) || '0.00'}</td> {/* Added */}
-                    <td>{row["Needle Break Hours"]?.toFixed(2) || '0.00'}</td> {/* Added */}
-                    <td>{row["Total Hours"]?.toFixed(2) || '0.00'}</td>
+                    <td>{formatHoursMinutes(row["Sewing Hours (PT)"] || 0)}</td>
+                    <td>{formatHoursMinutes(row["No Feeding Hours"] || 0)}</td>
+                    <td>{formatHoursMinutes(row["Meeting Hours"] || 0)}</td>
+                    <td>{formatHoursMinutes(row["Maintenance Hours"] || 0)}</td>
+                    <td>{formatHoursMinutes(row["Idle Hours"] || 0)}</td>
+                    <td>{formatHoursMinutes(row["Rework Hours"] || 0)}</td> {/* Added */}
+                    <td>{formatHoursMinutes(row["Needle Break Hours"] || 0)}</td> {/* Added */}
+                    <td>{formatHoursMinutes(row["Total Hours"] || 0)}</td>
                     <td>{row["Productive Time (PT) %"]?.toFixed(2) || '0.00'}%</td>
                     <td>{row["Non-Productive Time (NPT) %"]?.toFixed(2) || '0.00'}%</td>
                     <td>{row["Sewing Speed"]?.toFixed(2) || '0.00'}</td>
                     <td>{row["Stitch Count"] || '0'}</td>
-                    <td>{row["Needle Runtime"]?.toFixed(2) || '0.00'}</td>
+                    <td>{formatHoursMinutes(row["Needle Runtime"] || 0)}</td>
                   </tr>
                 ))
               ) : (
@@ -486,15 +515,15 @@ const AllMachinesReport = ({ reportData = [], fromDate, toDate, detailedData = [
       <div className="top-indicators">
         <div className="indicator">
           <h4><FaTshirt /> Total Sewing Hours</h4>
-          <p>{totals.totalProductiveHours.toFixed(2)} Hrs</p>
+          <p>{formatHoursMinutes(totals.totalProductiveHours)}</p>
         </div>
         <div className="indicator">
           <h4><FaTools /> Total Non-Productive Hours </h4>
-          <p>{totals.totalNonProductiveHours.toFixed(2)} Hrs</p>
+          <p>{formatHoursMinutes(totals.totalNonProductiveHours)}</p>
         </div>
         <div className="indicator">
           <h4><FaClock /> Total Hours </h4>
-          <p>{totals.totalHours.toFixed(2)} Hrs</p>
+          <p>{formatHoursMinutes(totals.totalHours)}</p>
         </div>
       </div>
 
@@ -515,7 +544,7 @@ const AllMachinesReport = ({ reportData = [], fromDate, toDate, detailedData = [
 
       <div className="chart-breakdown-container">
         <div className="graph-section">
-          <h3>Hours Breakdown (All Machines Total: {totals.totalHours.toFixed(2)} Hrs)</h3>
+          <h3>Hours Breakdown (All Machines Total: {formatHoursMinutes(totals.totalHours)})</h3>
           <ResponsiveContainer width="100%" height={350}>
             <PieChart>
               <Pie
@@ -525,51 +554,52 @@ const AllMachinesReport = ({ reportData = [], fromDate, toDate, detailedData = [
                 cy="50%"
                 innerRadius={60}
                 outerRadius={100}
-                paddingAngle={5}
+                paddingAngle={2}
+                minAngle={1} // Ensures even the smallest segment is visible
               >
                 {chartData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
               <Tooltip
-                formatter={(value) => `${value.toFixed(2)} Hrs`}
+                formatter={(value) => `${formatHoursMinutes(value)} Hrs`}
                 labelFormatter={(_, payload) => payload[0]?.name || ""}
               />
             </PieChart>
           </ResponsiveContainer>
           <div className="total-hours" style={{ textAlign: 'center', marginTop: '10px' }}>
-            <strong>Total Hours: {totals.totalHours.toFixed(2)} Hrs</strong>
+            <strong>Total Hours: {formatHoursMinutes(totals.totalHours)}</strong>
           </div>
         </div>
 
         <div className="hour-breakdown">
           <div className="hour-box">
             <span className="dot production"></span>
-            <p>{totals.totalProductiveHours.toFixed(2)} Hrs: Sewing Hours</p>
+            <p>{formatHoursMinutes(totals.totalProductiveHours)}: Sewing Hours</p>
           </div>
           <div className="hour-box">
             <span className="dot no-feeding"></span>
-            <p>{totals.totalNoFeedingHours.toFixed(2)} Hrs: No Feeding</p>
+            <p>{formatHoursMinutes(totals.totalNoFeedingHours)}: No Feeding</p>
           </div>
           <div className="hour-box">
             <span className="dot meeting"></span>
-            <p>{totals.totalMeetingHours.toFixed(2)} Hrs: Meetings</p>
+            <p>{formatHoursMinutes(totals.totalMeetingHours)}: Meetings</p>
           </div>
           <div className="hour-box">
             <span className="dot maintenances"></span>
-            <p>{totals.totalMaintenanceHours.toFixed(2)} Hrs: Maintenance</p>
+            <p>{formatHoursMinutes(totals.totalMaintenanceHours)}: Maintenance</p>
           </div>
           <div className="hour-box">
             <span className="dot idle"></span>
-            <p>{totals.totalIdleHours.toFixed(2)} Hrs: Idle Time</p>
+            <p>{formatHoursMinutes(totals.totalIdleHours)}: Idle Time</p>
           </div>
           <div className="hour-box">
             <span className="dot rework"></span>
-            <p>{totals.totalReworkHours.toFixed(2)} Hrs: Rework</p>
+            <p>{formatHoursMinutes(totals.totalReworkHours)}: Rework</p>
           </div>
           <div className="hour-box">
             <span className="dot needle-break"></span>
-            <p>{totals.totalNeedleBreakHours.toFixed(2)} Hrs: Needle Break</p>
+            <p>{formatHoursMinutes(totals.totalNeedleBreakHours)}: Needle Break</p>
           </div>
         </div>
       </div>

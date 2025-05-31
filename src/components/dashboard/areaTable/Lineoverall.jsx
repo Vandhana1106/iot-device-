@@ -88,6 +88,42 @@ const formatConsistentDateTime = (dateTimeString) => {
   }
 };
 
+// Utility to convert decimal hours or "HH:MM" string to "H hours M minutes" format
+const formatHoursMinutes = (input) => {
+  if (input === null || input === undefined || input === "") return "-";
+  let hours = 0, minutes = 0;
+  if (typeof input === "string" && input.includes(":")) {
+    const [h, m] = input.split(":").map(Number);
+    if (!isNaN(h) && !isNaN(m)) {
+      hours = h;
+      minutes = m;
+    }
+  } else if (!isNaN(Number(input))) {
+    const decimalHours = Number(input);
+    hours = Math.floor(decimalHours);
+    minutes = Math.round((decimalHours - hours) * 60);
+  } else {
+    return "-";
+  }
+  if (hours === 0 && minutes === 0) return "0";
+  if (hours === 0) return `${minutes}m`;
+  if (minutes === 0) return `${hours}h`;
+  return `${hours}h ${minutes}m`;
+};
+
+// Utility to convert any hour input (decimal or "HH:MM") to total minutes
+const toTotalMinutes = (input) => {
+  if (input === null || input === undefined || input === "") return 0;
+  if (typeof input === "string" && input.includes(":")) {
+    const [h, m] = input.split(":").map(Number);
+    if (!isNaN(h) && !isNaN(m)) return h * 60 + m;
+  } else if (!isNaN(Number(input))) {
+    const decimalHours = Number(input);
+    return Math.round(decimalHours * 60);
+  }
+  return 0;
+};
+
 const Lineoverall = () => {
   const [tableData, setTableData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
@@ -197,34 +233,29 @@ const Lineoverall = () => {
 
   // Function to calculate whether a record should be included in calculations
   const calculateCalculationValue = (item) => {
-    // Exclude records where OPERATOR_ID is 0 AND MODE is 2
-    if (item.OPERATOR_ID === "0" && item.MODE === 2) {
-      return 0;
-    }
+    // Remove exclusion for OPERATOR_ID 0
 
     // List of valid operator IDs
     const validOperatorIDs = [
-  "3658143475", "3660306819", "3660499379", "3659262979",
-  "3661924643", "3661191843", "3653098739", "3659613555",
-  "3658619763", "3660851603", "3652395075", "3653353699",
-  "3654730995", "3660111891", "3660850451", "3661210371",
-  "3661215379", "3660650483", "3655499331", "3660137427",
-  "3655053075", "3655015683", "3660405379", "3662024435",
-  "3793893139",
+      "3658143475", "3660306819", "3660499379", "3659262979",
+      "3661924643", "3661191843", "3653098739", "3659613555",
+      "3658619763", "3660851603", "3652395075", "3653353699",
+      "3654730995", "3660111891", "3660850451", "3661210371",
+      "3661215379", "3660650483", "3655499331", "3660137427",
+      "3655053075", "3655015683", "3660405379", "3662024435",
+      "3793893139",
 
-  // Newly added Operator IDs
-  "3661139987", "3660575811", "3662245171", "3661270803",
-  "3660572579", "3660934899", "3661393987", "3655662323",
-  "3659679971", "3660802403"
-];
+      // Newly added Operator IDs
+      "3661139987", "3660575811", "3662245171", "3661270803",
+      "3660572579", "3660934899", "3661393987", "3655662323",
+      "3659679971", "3660802403"
+    ];
 
-
-    // Check if OPERATOR_ID is missing, invalid or equals 0
-    // This is to ensure only valid operators are considered
-    if (!item.OPERATOR_ID || 
-        item.OPERATOR_ID === "0" || 
-        item.OPERATOR_ID === 0 || 
-        !validOperatorIDs.includes(item.OPERATOR_ID.toString())) {
+    // Allow OPERATOR_ID 0 to be included in calculation
+    if (
+      !item.OPERATOR_ID || 
+      (item.OPERATOR_ID !== 0 && item.OPERATOR_ID !== "0" && !validOperatorIDs.includes(item.OPERATOR_ID.toString()))
+    ) {
       return 0;
     }
 

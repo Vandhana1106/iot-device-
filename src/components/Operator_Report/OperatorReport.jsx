@@ -37,14 +37,36 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
 
   const [dateError, setDateError] = useState("");
 
-  // Utility to format decimal hours to HH:MM
-  const formatToHHMM = (value) => {
-    const num = parseFloat(value);
-    if (isNaN(num) || num <= 0) return '00:00';
-    const totalMinutes = Math.round(num * 60);
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  // Utility to convert decimal hours or "HH:MM" string to "H hours M minutes" format
+  const formatHoursMinutes = (input) => {
+    if (input === null || input === undefined || input === "") return "-";
+    let hours = 0, minutes = 0;
+    if (typeof input === "string" && input.includes(":")) {
+      const [h, m] = input.split(":").map(Number);
+      if (!isNaN(h) && !isNaN(m)) {
+        hours = h;
+        minutes = m;
+      }
+    } else if (!isNaN(Number(input))) {
+      const decimalHours = Number(input);
+    hours = Math.floor(decimalHours);
+    minutes = Math.round((decimalHours - hours) * 60);
+    } else {
+      return "-";
+    }
+     if (hours === 0 && minutes === 0) return "0";
+  if (hours === 0) return `${minutes}m`;
+  if (minutes === 0) return `${hours}h`;
+  return `${hours}h ${minutes}m`;
+    return `${hours} hours${minutes > 0 ? ` ${minutes} minutes` : ''}`;
+  };
+
+  // Utility to convert seconds to "H hours M minutes" format
+  const formatSecondsToHoursMinutes = (seconds) => {
+    if (isNaN(seconds) || seconds === null || seconds === undefined) return "-";
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.round((seconds % 3600) / 60);
+    return `${hours} hours${minutes > 0 ? ` ${minutes} minutes` : ''}`;
   };
 
   // Helper function to safely convert to number and format
@@ -66,13 +88,14 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
       .then((data) => {
         const allTableData = data.tableData;
         
-        const totalSewingHours = allTableData.reduce((sum, row) => sum + (parseFloat(row["Sewing Hours"]) || 0), 0);
-        const totalIdleHours = allTableData.reduce((sum, row) => sum + (parseFloat(row["Idle Hours"]) || 0), 0);
-        const totalMeetingHours = allTableData.reduce((sum, row) => sum + (parseFloat(row["Meeting Hours"]) || 0), 0);
-        const totalNoFeedingHours = allTableData.reduce((sum, row) => sum + (parseFloat(row["No Feeding Hours"]) || 0), 0);
-        const totalMaintenanceHours = allTableData.reduce((sum, row) => sum + (parseFloat(row["Maintenance Hours"]) || 0), 0);
-        const totalReworkHours = allTableData.reduce((sum, row) => sum + (parseFloat(row["Rework Hours"]) || 0), 0);
-        const totalNeedleBreakHours = allTableData.reduce((sum, row) => sum + (parseFloat(row["Needle Break Hours"]) || 0), 0);
+       const totalSewingHours = allTableData.reduce((sum, row) => sum + (parseFloat(row["Sewing Hours"]) || 0), 0);
+const totalIdleHours = allTableData.reduce((sum, row) => sum + (parseFloat(row["Idle Hours"]) || 0), 0);
+const totalMeetingHours = allTableData.reduce((sum, row) => sum + (parseFloat(row["Meeting Hours"]) || 0), 0);
+const totalNoFeedingHours = allTableData.reduce((sum, row) => sum + (parseFloat(row["No Feeding Hours"]) || 0), 0);
+const totalMaintenanceHours = allTableData.reduce((sum, row) => sum + (parseFloat(row["Maintenance Hours"]) || 0), 0);
+const totalReworkHours = allTableData.reduce((sum, row) => sum + (parseFloat(row["Rework Hours"]) || 0), 0);
+const totalNeedleBreakHours = allTableData.reduce((sum, row) => sum + (parseFloat(row["Needle Break Hours"]) || 0), 0);
+
 
         setReportData({
           ...data,
@@ -302,15 +325,29 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
     (reportData.todayReworkHours || 0) +
     (reportData.todayNeedleBreakHours || 0);
 
-  // Prepare data for Recharts
- const chartData = [
-  { name: "Sewing Hours", value: reportData.todaySewingHours, color: "#3E3561" },
-  { name: "No Feeding Hours", value: reportData.todayNoFeedingHours, color: "#118374" },
-  { name: "Maintenance Hours", value: reportData.todayMaintenanceHours, color: "#F8A723" },
-  { name: "Meeting Hours", value: reportData.todayMeetingHours, color: "#E74C3C" },
-  { name: "Idle Hours", value: reportData.todayIdleHours, color: "#8E44AD" },
-  { name: "Rework Hours", value: reportData.todayReworkHours || 0, color: "#FF6F61" },
-  { name: "Needle Break Hours", value: reportData.todayNeedleBreakHours || 0, color: "#00B8D9" }
+  // Utility to convert any hour input (decimal or "HH:MM") to total minutes
+const toTotalMinutes = (input) => {
+  if (input === null || input === undefined || input === "") return 0;
+  if (typeof input === "string" && input.includes(":")) {
+    const [h, m] = input.split(":").map(Number);
+    if (!isNaN(h) && !isNaN(m)) return h * 60 + m;
+  } else if (!isNaN(Number(input))) {
+    const decimalHours = Number(input);
+    return Math.round(decimalHours * 60);
+  }
+  return 0;
+};
+
+// Prepare data for Recharts
+const firstRow = reportData.tableData[0] || {};
+const chartData = [
+  { name: "Sewing Hours", value: toTotalMinutes(firstRow["Sewing Hours"]), color: "#3E3561" },
+  { name: "No Feeding Hours", value: toTotalMinutes(firstRow["No Feeding Hours"]), color: "#118374" },
+  { name: "Maintenance Hours", value: toTotalMinutes(firstRow["Maintenance Hours"]), color: "#F8A723" },
+  { name: "Meeting Hours", value: toTotalMinutes(firstRow["Meeting Hours"]), color: "#E74C3C" },
+  { name: "Idle Hours", value: toTotalMinutes(firstRow["Idle Hours"]), color: "#8E44AD" },
+  { name: "Rework Hours", value: toTotalMinutes(firstRow["Rework Hours"]), color: "#FF6F61" },
+  { name: "Needle Break Hours", value: toTotalMinutes(firstRow["Needle Break Hours"]), color: "#00B8D9" }
 ].filter(item => item.value > 0); // Only include items with values > 0
 
   return (
@@ -371,19 +408,19 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
                   <td>{row.Date}</td>
                   <td>{row["Operator ID"]}</td>
                   <td>{row["Operator Name"]}</td>
-                  <td>{formatToHHMM(row["Total Hours"])}</td>
-                  <td>{formatToHHMM(row["Sewing Hours"])}</td>
-                  <td>{formatToHHMM(row["Idle Hours"])}</td>
-                  <td>{formatToHHMM(row["Meeting Hours"])}</td>
-                  <td>{formatToHHMM(row["No Feeding Hours"])}</td>
-                  <td>{formatToHHMM(row["Maintenance Hours"])}</td>
-                  <td>{formatToHHMM(row["Rework Hours"])}</td>
-                  <td>{formatToHHMM(row["Needle Break Hours"])}</td>
+                  <td>{formatHoursMinutes(row["Total Hours"])}</td>
+                  <td>{formatHoursMinutes(row["Sewing Hours"])}</td>
+                  <td>{formatHoursMinutes(row["Idle Hours"])}</td>
+                  <td>{formatHoursMinutes(row["Meeting Hours"])}</td>
+                  <td>{formatHoursMinutes(row["No Feeding Hours"])}</td>
+                  <td>{formatHoursMinutes(row["Maintenance Hours"])}</td>
+                  <td>{formatHoursMinutes(row["Rework Hours"])}</td>
+                  <td>{formatHoursMinutes(row["Needle Break Hours"])}</td>
                   <td>{safeToFixed(row["Productive Time in %"])}%</td>
                   <td>{safeToFixed(row["NPT in %"])}%</td>
                   <td>{safeToFixed(row["Sewing Speed"])}</td>
                   <td>{safeToFixed(row["Stitch Count"])}</td> 
-                  <td>{formatToHHMM(row["Needle Runtime"])}</td>
+                  <td>{formatSecondsToHoursMinutes(row["Needle Runtime"])}</td>
                 </tr>
               ))}
             </tbody>
@@ -447,15 +484,15 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
       <div className="top-indicators">
         <div className="indicator">
           <h4><FaTshirt /> Total Sewing Hours</h4>
-          <p>{formatToHHMM(reportData.totalProductionHours)} Hrs</p>
+          <p>{formatHoursMinutes(reportData.totalProductionHours)}</p>
         </div>
         <div className="indicator">
           <h4><FaTools /> Total Non-Production Hours</h4>
-          <p>{formatToHHMM(reportData.totalNonProductionHours)} Hrs</p>
+          <p>{formatHoursMinutes(reportData.totalNonProductionHours)}</p>
         </div>
         <div className="indicator">
           <h4><FaClock /> Total Hours</h4>
-          <p>{formatToHHMM(reportData.totalHours)} Hrs</p>
+          <p>{formatHoursMinutes(reportData.totalHours)}</p>
         </div>
        
       </div>
@@ -475,70 +512,83 @@ const OperatorReport = ({ operator_name, fromDate, toDate }) => {
         </div>
       </div>
 
-      <div className="chart-breakdown-container">
-        <div className="graph-section">
-          <h3>Hours Breakdown</h3>
-          <div style={{ width: '100%', height: '320px' }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={chartData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  formatter={(value) => safeToFixed(value) + " Hrs"} 
-                  labelFormatter={(_, payload) => payload[0]?.name || ""}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          {/* Custom Legend */}
-        
-          <div className="total-hours" style={{ textAlign: 'center', marginTop: '10px' }}>
-            <strong>Total Hours: {formatToHHMM(totalTodayHours)} Hrs</strong>
-          </div>
-        </div>
+     <div className="chart-breakdown-container">
+  <div className="graph-section">
+    <h3>Hours Breakdown</h3>
+    <div style={{ width: '100%', height: '320px' }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie
+            data={chartData}
+            cx="50%"
+            cy="50%"
+            innerRadius={60}
+            outerRadius={100}
+            paddingAngle={5}
+            dataKey="value"
+          >
+            {chartData.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={entry.color} />
+            ))}
+          </Pie>
+          <Tooltip 
+            formatter={(value, name) => {
+              const hours = Math.floor(value / 60);
+              const minutes = value % 60;
+              let label = '';
+              if (hours > 0 && minutes > 0) label = `${hours} hours ${minutes} minutes`;
+              else if (hours > 0) label = `${hours} hours`;
+              else label = `${minutes} minutes`;
+              return [label, name];
+            }}
+            labelFormatter={(name) => `${name}`}
+            contentStyle={{
+              backgroundColor: '#fff',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              fontSize: '14px'
+            }}
+          />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
+    
+    {/* <div className="total-hours" style={{ textAlign: 'center', marginTop: '10px' }}>
+      <strong>Total Hours: {formatHoursMinutes(totalTodayHours)}</strong>
+    </div> */}
+  </div>
 
-        <div className="hour-breakdown">
-          <div className="hour-box">
-            <span className="dot production"></span>
-            <p>{formatToHHMM(reportData.todaySewingHours)} Hrs: Sewing Hours</p>
-          </div>
-          <div className="hour-box">
-            <span className="dot non-production"></span>
-            <p>{formatToHHMM(reportData.todayNoFeedingHours)} Hrs: No Feeding Hours</p>
-          </div>
-          <div className="hour-box">
-            <span className="dot idle"></span>
-            <p>{formatToHHMM(reportData.todayMaintenanceHours)} Hrs: Maintenance Hours</p>
-          </div>
-          <div className="hour-box">
-            <span className="dot meeting"></span>
-            <p>{formatToHHMM(reportData.todayMeetingHours)} Hrs: Meeting Hours</p>
-          </div>
-          <div className="hour-box">
-            <span className="dot no-feeding"></span>
-            <p>{formatToHHMM(reportData.todayIdleHours)} Hrs: Idle Hours</p>
-          </div>
-          <div className="hour-box">
-            <span className="dot rework"></span>
-            <p>{formatToHHMM(reportData.todayReworkHours)} Hrs: Rework Hours</p>
-          </div>
-          <div className="hour-box">
-            <span className="dot needle-break"></span>
-            <p>{formatToHHMM(reportData.todayNeedleBreakHours)} Hrs: Needle Break Hours</p>
-          </div>
-        </div>
-      </div>
+  <div className="hour-breakdown">
+    <div className="hour-box">
+      <span className="dot production"></span>
+      <p>{formatHoursMinutes(firstRow["Sewing Hours"])}: Sewing Hours</p>
+    </div>
+    <div className="hour-box">
+      <span className="dot non-production"></span>
+      <p>{formatHoursMinutes(firstRow["No Feeding Hours"])}: No Feeding Hours</p>
+    </div>
+    <div className="hour-box">
+      <span className="dot idle"></span>
+      <p>{formatHoursMinutes(firstRow["Maintenance Hours"])}: Maintenance Hours</p>
+    </div>
+    <div className="hour-box">
+      <span className="dot meeting"></span>
+      <p>{formatHoursMinutes(firstRow["Meeting Hours"])}: Meeting Hours</p>
+    </div>
+    <div className="hour-box">
+      <span className="dot no-feeding"></span>
+      <p>{formatHoursMinutes(firstRow["Idle Hours"])}: Idle Hours</p>
+    </div>
+    <div className="hour-box">
+      <span className="dot rework"></span>
+      <p>{formatHoursMinutes(firstRow["Rework Hours"])}: Rework Hours</p>
+    </div>
+    <div className="hour-box">
+      <span className="dot needle-break"></span>
+      <p>{formatHoursMinutes(firstRow["Needle Break Hours"])}: Needle Break Hours</p>
+    </div>
+  </div>
+</div>
     </div>
   );
 };
