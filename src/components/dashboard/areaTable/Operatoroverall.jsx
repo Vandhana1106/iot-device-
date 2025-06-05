@@ -575,12 +575,41 @@ const Operatoroverall = () => {
           </div>
         ) : (
           <div className="operator-report-section">
-            <OperatorReport 
-              operator_name={selectedOperatorName} 
-              fromDate={fromDate} 
-              toDate={toDate}
-              onDataLoaded={handleOperatorReportData}
-            />
+            {selectedOperatorName === "All" ? (
+              (() => {
+                // Aggregate totals for all filteredData rows
+                const aggregateFields = [
+                  // List the keys you want to aggregate for the pie chart
+                  // Example: 'STITCH_COUNT', 'RESERVE', etc. Adjust as needed for your chart
+                  "STITCH_COUNT", "RESERVE", "DEVICE_ID", "Tx_LOGID", "Str_LOGID"
+                  // Add more keys if your pie chart uses other fields
+                ];
+                const aggregatedData = {};
+                aggregateFields.forEach(key => {
+                  aggregatedData[key] = filteredData.reduce((sum, row) => {
+                    const val = Number(row[key]);
+                    return sum + (isNaN(val) ? 0 : val);
+                  }, 0);
+                });
+                // You may also want to aggregate time fields, percentages, etc. Add logic as needed
+                return (
+                  <OperatorReport 
+                    operator_name={"All"}
+                    fromDate={fromDate}
+                    toDate={toDate}
+                    aggregatedData={aggregatedData}
+                    onDataLoaded={handleOperatorReportData}
+                  />
+                );
+              })()
+            ) : (
+              <OperatorReport 
+                operator_name={selectedOperatorName} 
+                fromDate={fromDate} 
+                toDate={toDate}
+                onDataLoaded={handleOperatorReportData}
+              />
+            )}
           </div>
         )}
       </div>

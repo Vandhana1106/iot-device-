@@ -236,18 +236,47 @@ const LineReport = ({ lineNumber, fromDate, toDate }) => {
     return 0;
   };
 
+  // Define consistent color mapping (same as OperatorReport)
+  const colorMap = {
+    "Sewing Hours": "#27ae60", // green
+    "No Feeding Hours": "#2980b9", // blue
+    "Maintenance Hours": "#f1c40f", // yellow
+    "Meeting Hours": "#e74c3c", // red
+    "Idle Hours": "#7f8c8d", // gray
+    "Rework Hours": "#f39c12", // orange
+    "Needle Break Hours": "#8e44ad" // purple
+  };
+
   // Prepare data for Recharts (use first row for breakdown, as in OperatorReport)
   const firstRow = reportData.tableData[0] || {};
   const chartData = [
-    { name: "Sewing Hours", value: toTotalMinutes(firstRow["Sewing Hours (PT)"]), color: "#3E3561" },
-    { name: "No Feeding Hours", value: toTotalMinutes(firstRow["No Feeding Hours"]), color: "#118374" },
-    { name: "Maintenance Hours", value: toTotalMinutes(firstRow["Maintenance Hours"]), color: "#F8A723" },
-    { name: "Meeting Hours", value: toTotalMinutes(firstRow["Meeting Hours"]), color: "#E74C3C" },
-    { name: "Idle Hours", value: toTotalMinutes(firstRow["Idle Hours"]), color: "#8E44AD" },
-    { name: "Rework Hours", value: toTotalMinutes(firstRow["Rework Hours"]), color: "#FF6F61" },
-    { name: "Needle Break Hours", value: toTotalMinutes(firstRow["Needle Break Hours"]), color: "#00B8D9" }
+    { name: "Sewing Hours", value: toTotalMinutes(firstRow["Sewing Hours (PT)"]), color: colorMap["Sewing Hours"] },
+    { name: "No Feeding Hours", value: toTotalMinutes(firstRow["No Feeding Hours"]), color: colorMap["No Feeding Hours"] },
+    { name: "Maintenance Hours", value: toTotalMinutes(firstRow["Maintenance Hours"]), color: colorMap["Maintenance Hours"] },
+    { name: "Meeting Hours", value: toTotalMinutes(firstRow["Meeting Hours"]), color: colorMap["Meeting Hours"] },
+    { name: "Idle Hours", value: toTotalMinutes(firstRow["Idle Hours"]), color: colorMap["Idle Hours"] },
+    { name: "Rework Hours", value: toTotalMinutes(firstRow["Rework Hours"]), color: colorMap["Rework Hours"] },
+    { name: "Needle Break Hours", value: toTotalMinutes(firstRow["Needle Break Hours"]), color: colorMap["Needle Break Hours"] }
   ].filter(item => item.value > 0);
   console.log('Pie chartData:', chartData);
+
+  // Utility to calculate needle runtime percentage for a row (like OperatorReport/MachineReport)
+  const getNeedleRuntimePercentage = (row) => {
+    let sewingHours = row["Sewing Hours (PT)"] || 0;
+    let needleRuntime = row["Needle Runtime"] || 0;
+    let sewingSeconds = 0;
+    if (typeof sewingHours === "string" && sewingHours.includes(":")) {
+      const [h, m] = sewingHours.split(":").map(Number);
+      sewingSeconds = (isNaN(h) ? 0 : h) * 3600 + (isNaN(m) ? 0 : m) * 60;
+    } else if (!isNaN(Number(sewingHours))) {
+      const num = Number(sewingHours);
+      if (num > 10000) sewingSeconds = num; // already seconds
+      else sewingSeconds = num * 3600; // decimal hours
+    }
+    // Use needleRuntime as-is (assumed seconds)
+    if (!needleRuntime || !sewingSeconds) return '0.00';
+    return ((needleRuntime / sewingSeconds) * 100).toFixed(2);
+  };
 
   return (
     <div className="line-container">
@@ -270,19 +299,20 @@ const LineReport = ({ lineNumber, fromDate, toDate }) => {
             <thead>
               <tr>
                 <th>Date</th>
-                <th>Sewing Hours (PT)</th>
-                <th>No Feeding Hours</th>
-                <th>Meeting Hours</th>
-                <th>Maintenance Hours</th>
-                <th>Rework Hours</th>
-                <th>Needle Break Hours</th>
-                <th>Idle Hours</th>
+                <th>Line Number</th> {/* Added Line Number column */}
+                <th>Sewing</th>
+                <th>No Feeding </th>
+                <th>Meeting</th>
+                <th>Maintenance</th>
+                <th>Rework</th>
+                <th>Needle Break</th>
+                <th>Idle</th>
                 <th>Total Hours</th>
                 <th>PT %</th>
                 <th>NPT %</th>
+                <th>Needle Runtime %</th> {/* Moved Needle Runtime % after NPT % */}
                 <th>Sewing Speed</th>
                 <th>Stitch Count</th>
-                <th>Needle Runtime</th>
                 <th>Machine Count</th>
               </tr>
             </thead>
@@ -290,6 +320,7 @@ const LineReport = ({ lineNumber, fromDate, toDate }) => {
               {reportData.tableData.map((row, index) => (
                 <tr key={index}>
                   <td>{row.Date}</td>
+                  <td>{row["Line Number"] || lineNumber}</td> {/* Show Line Number */}
                   <td>{formatHoursMinutes(row["Sewing Hours (PT)"])}</td>
                   <td>{formatHoursMinutes(row["No Feeding Hours"])}</td>
                   <td>{formatHoursMinutes(row["Meeting Hours"])}</td>
@@ -300,9 +331,9 @@ const LineReport = ({ lineNumber, fromDate, toDate }) => {
                   <td>{formatHoursMinutes(row["Total Hours"])}</td>
                   <td>{safeToFixed(row["Productive Time (PT) %"])}%</td>
                   <td>{safeToFixed(row["Non-Productive Time (NPT) %"])}%</td>
+                  <td>{getNeedleRuntimePercentage(row)}%</td> {/* Moved Needle Runtime % after NPT % */}
                   <td>{safeToFixed(row["Sewing Speed"])}</td>
                   <td>{row["Stitch Count"] || '0'}</td>
-                  <td>{safeToFixed(row["Needle Runtime"])}</td>
                   <td>{row["Machine Count"] || '0'}</td>
                 </tr>
               ))}
@@ -311,33 +342,45 @@ const LineReport = ({ lineNumber, fromDate, toDate }) => {
         </div>
       </div>
 
-      <div className="top-indicators">
-        <div className="indicator">
-          <h4><FaTshirt /> Total Sewing Hours</h4>
-          <p>{formatHoursMinutes(reportData.totalProductiveTime.hours)} Hrs</p>
-        </div>
-        <div className="indicator">
-          <h4><FaTools /> Total Non-Productive Hours</h4>
-          <p>{formatHoursMinutes(reportData.totalNonProductiveTime.hours)} Hrs</p>
-        </div>
-        <div className="indicator">
-          <h4><FaClock /> Total Hours</h4>
-          <p>{formatHoursMinutes(reportData.totalHours)} Hrs</p>
-        </div>
-      </div>
+     
 
       <div className="summary-tiles">
         <div className="tile production-percentage">
           <p>{safeToFixed(reportData.totalProductiveTime.percentage)}%</p>
           <span>Productive Time</span>
         </div>
-        <div className="tile average-speed">
-          <p>{safeToFixed(reportData.averageSewingSpeed)}</p>
-          <span>Avg Sewing Speed</span>
-        </div>
         <div className="tile needle-runtime-percentage">
-          <p>{safeToFixed(reportData.needleRuntimePercentage)}%</p>
-          <span>Needle Runtime</span>
+          <p>{safeToFixed(
+            reportData.totalNeedleRuntime && reportData.totalProductiveTime.hours
+              ? (function() {
+                  // Calculate total sewing seconds
+                  let sewing = reportData.totalProductiveTime.hours;
+                  let sewingSeconds = 0;
+                  if (typeof sewing === "string" && sewing.includes(":")) {
+                    const [h, m] = sewing.split(":").map(Number);
+                    sewingSeconds = (isNaN(h) ? 0 : h) * 3600 + (isNaN(m) ? 0 : m) * 60;
+                  } else if (!isNaN(Number(sewing))) {
+                    const num = Number(sewing);
+                    if (num > 10000) sewingSeconds = num; // already seconds
+                    else sewingSeconds = num * 3600; // decimal hours
+                  }
+                  return sewingSeconds > 0 ? (reportData.totalNeedleRuntime / sewingSeconds) * 100 : 0;
+                })()
+              : 0
+          )}%</p>
+          <span>Needle Runtime %</span>
+        </div>
+        <div className="tile sewing-speed">
+          <p>{
+            reportData.tableData.length > 0
+              ? safeToFixed(reportData.tableData.reduce((sum, row) => sum + (row["Sewing Speed"] || 0), 0) / reportData.tableData.length)
+              : '0.00'
+          }</p>
+          <span>Sewing Speed</span>
+        </div>
+        <div className="tile total-hours">
+          <p>{formatHoursMinutes(reportData.totalHours)}</p>
+          <span>Total Hours</span>
         </div>
       </div>
 

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FaFilter, FaRedo, FaTimes, FaSearch, FaDownload, FaAngleLeft, FaAngleRight, FaAngleDoubleLeft, FaAngleDoubleRight, FaChartBar } from "react-icons/fa";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
@@ -86,6 +86,7 @@ const ConsolidatedReports = () => {
   const [showSummary, setShowSummary] = useState(false);
   const [summaryDataAvailable, setSummaryDataAvailable] = useState(false);
   const [activeFilters, setActiveFilters] = useState({});
+  const [summaryFilter, setSummaryFilter] = useState("operator"); // new summary filter state
 
   // Utility to convert decimal hours to "H hours M minutes" format
   const formatHoursMinutes = (decimalHours) => {
@@ -408,14 +409,26 @@ const ConsolidatedReports = () => {
 
   const applyFilterChanges = () => {
     const selectedValues = showFilterPopup.selectedValues.filter(v => v !== "All");
-    
-    setFilters(prev => ({
-      ...prev,
+    const newFilters = {
+      ...filters,
       [showFilterPopup.type]: selectedValues
-    }));
-    
+    };
+    setFilters(newFilters);
     setShowFilterPopup({ show: false, type: null, options: [], selectedValues: [] });
     setCurrentPage(1);
+
+    // Immediately filter tableData based on newFilters
+    let filtered = tableData.filter(item => !item.isSummary);
+    if (newFilters.MACHINE_ID.length > 0 && !newFilters.MACHINE_ID.includes("All")) {
+      filtered = filtered.filter(item => newFilters.MACHINE_ID.includes(item.MACHINE_ID));
+    }
+    if (newFilters.LINE_NUMB.length > 0 && !newFilters.LINE_NUMB.includes("All")) {
+      filtered = filtered.filter(item => newFilters.LINE_NUMB.includes(item.LINE_NUMB));
+    }
+    if (newFilters.operator_name.length > 0 && !newFilters.operator_name.includes("All")) {
+      filtered = filtered.filter(item => newFilters.operator_name.includes(item.operator_name));
+    }
+    setFilteredData(filtered);
   };
 
   const clearFilterChanges = () => {
@@ -593,74 +606,112 @@ const ConsolidatedReports = () => {
     });
   };
 
+  // --- ensure default summaryFilter is 'operator' and summary table is shown by default ---
+  useEffect(() => { setSummaryFilter("operator"); }, []);
+
   return (
     <section className="content-area-table">
       <div className="data-table-info">
         <h4 className="data-table-title">Consolidated Report</h4>
-        <div className="filter-wrapper">
-          <div className="primary-filters">
-            <div className="filter-group">
+        <div className="filter-wrapper" style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: '16px' }}>
+          <div className="primary-filters" style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: '16px' }}>
+            <div className="filter-group" style={{ minWidth: '160px' }}>
               <label>From Date</label>
               <input
                 type="date"
                 value={fromDate}
                 onChange={(e) => setFromDate(e.target.value)}
+                style={{ width: '100%' }}
               />
             </div>
-
-            <div className="filter-group">
+            <div className="filter-group" style={{ minWidth: '160px' }}>
               <label>To Date</label>
               <input
                 type="date"
                 value={toDate}
                 onChange={(e) => setToDate(e.target.value)}
+                style={{ width: '100%' }}
               />
             </div>
-
-            <button 
-              className="download-button" 
+            <button
+              className="apply-date-button"
               onClick={fetchData}
               disabled={!fromDate || !toDate}
-              style={{ marginTop: "25px", backgroundColor: "green" }}
+              style={{ marginTop: '25px', backgroundColor: '#007bff', color: '#fff', height: '36px', minWidth: '110px' }}
             >
-              Generate
+              Apply Date
             </button>
-
+            <button
+              className="reset-date-button"
+              onClick={() => { setFromDate(''); setToDate(''); setCurrentPage(1); }}
+              style={{ marginTop: '25px', backgroundColor: '#f44336', color: '#fff', height: '36px', minWidth: '110px' }}
+            >
+              Reset Date
+            </button>
             {tableData.length > 0 && (
               <>
-                <div className="filter-group">
+                <div className="filter-group" style={{ minWidth: '160px' }}>
                   <label>Machine ID</label>
-                  <div 
+                  <div
                     className={`filter-value-display clickable ${filters.MACHINE_ID && filters.MACHINE_ID.length > 0 ? 'has-value' : ''}`}
-                    onClick={() => openFilterPopup("MACHINE_ID")}
+                    onClick={() => openFilterPopup('MACHINE_ID')}
+                    style={{ width: '100%' }}
                   >
-                    {getFilterDisplayText("MACHINE_ID")}
+                    {getFilterDisplayText('MACHINE_ID')}
                   </div>
                 </div>
-
-                <div className="filter-group">
+                <div className="filter-group" style={{ minWidth: '160px' }}>
                   <label>Line Number</label>
-                  <div 
+                  <div
                     className={`filter-value-display clickable ${filters.LINE_NUMB && filters.LINE_NUMB.length > 0 ? 'has-value' : ''}`}
-                    onClick={() => openFilterPopup("LINE_NUMB")}
+                    onClick={() => openFilterPopup('LINE_NUMB')}
+                    style={{ width: '100%' }}
                   >
-                    {getFilterDisplayText("LINE_NUMB")}
+                    {getFilterDisplayText('LINE_NUMB')}
                   </div>
                 </div>
-
-                <div className="filter-group">
+                <div className="filter-group" style={{ minWidth: '160px' }}>
                   <label>Operator Name</label>
-                  <div 
+                  <div
                     className={`filter-value-display clickable ${filters.operator_name && filters.operator_name.length > 0 ? 'has-value' : ''}`}
-                    onClick={() => openFilterPopup("operator_name")}
+                    onClick={() => openFilterPopup('operator_name')}
+                    style={{ width: '100%' }}
                   >
-                    {getFilterDisplayText("operator_name")}
+                    {getFilterDisplayText('operator_name')}
                   </div>
                 </div>
-
+                <div className="filter-group" style={{ minWidth: '160px' }}>
+                  <label>Summary</label>
+                  <div
+                    className={`filter-value-display clickable`}
+                    onClick={() => setShowFilterPopup({
+                      show: true,
+                      type: 'summaryFilter',
+                      options: [
+                        { label: 'Operator', value: 'operator' },
+                        { label: 'Machine', value: 'machine' },
+                        { label: 'Line', value: 'line' }
+                      ],
+                      selectedValues: [summaryFilter]
+                    })}
+                    style={{ width: '100%' }}
+                  >
+                    {summaryFilter.charAt(0).toUpperCase() + summaryFilter.slice(1)}
+                  </div>
+                </div>
+                <button
+                  className="reset-filter-button"
+                  style={{ marginTop: '25px', backgroundColor: '#f44336', color: '#fff', height: '36px', minWidth: '110px' }}
+                  onClick={() => {
+                    setFilters({ MACHINE_ID: [], LINE_NUMB: [], operator_name: [] });
+                    setCurrentPage(1);
+                  }}
+                >
+                  Reset Filters
+                </button>
                 <button
                   className="reset-button"
-                  style={{ marginTop: "4px", marginLeft: "30px" }}
+                  style={{ marginTop: '25px', backgroundColor: '#607d8b', color: '#fff', height: '36px', minWidth: '110px' }}
                   onClick={handleReset}
                 >
                   <FaRedo /> Reset All
@@ -730,11 +781,275 @@ const ConsolidatedReports = () => {
         </div>
       )}
 
+      {showFilterPopup.show && showFilterPopup.type === 'summaryFilter' && (
+        <div className="filter-popup">
+          <div className="popup-content">
+            <div className="popup-header">
+              <h3>Select Summary</h3>
+              <button className="close-button" onClick={() => setShowFilterPopup({ show: false, type: null, options: [], selectedValues: [] })}>
+                ×
+              </button>
+            </div>
+            <div className="options-list">
+              {showFilterPopup.options.map((option, index) => (
+                <div
+                  key={index}
+                  className={`option-item clickable ${showFilterPopup.selectedValues.includes(option.value) ? 'selected' : ''}`}
+                  onClick={() => {
+                    setShowFilterPopup(prev => ({
+                      ...prev,
+                      selectedValues: [option.value]
+                    }));
+                  }}
+                >
+                  <input
+                    type="radio"
+                    checked={showFilterPopup.selectedValues.includes(option.value)}
+                    onChange={() => {}}
+                  />
+                  <span>{option.label}</span>
+                </div>
+              ))}
+            </div>
+            <div className="popup-footer">
+              <button
+                className="apply-button"
+                onClick={() => {
+                  setSummaryFilter(showFilterPopup.selectedValues[0] || 'operator');
+                  setShowFilterPopup({ show: false, type: null, options: [], selectedValues: [] });
+                }}
+              >
+                Apply Filter
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="results-section">
         {showSummary && (
-          <div className="summary-section">
+          <div className="summary-section" style={{ marginBottom: '48px' }}>
             <h4>Summary Report</h4>
-            <div className="summary-content">
+            <div className="summary-table-wrapper">
+              <table className="summary-table">
+                <thead>
+                  <tr>
+                    <th>Date Range</th>
+                    <th>Operator ID</th>
+                    <th>Operator Name</th>
+                    <th>Machine ID</th>
+                    <th>Line Number</th>
+                    <th>Total Hours</th>
+                    <th>Sewing Hours</th>
+                    <th>Idle Hours</th>
+                    <th>Meeting Hours</th>
+                    <th>No Feeding Hours</th>
+                    <th>Maintenance Hours</th>
+                    <th>Rework Hours</th>
+                    <th>Needle Break Hours</th>
+                    <th>Productive Time in %</th>
+                    <th>NPT in %</th>
+                    <th>Sewing Speed</th>
+                    <th>Stitch Count</th>
+                    <th>Needle Runtime</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>{activeFilters.from_date || "Start"} to {activeFilters.to_date || "End"}</td>
+                    <td>{activeFilters.OPERATOR_ID || "All"}</td>
+                    <td>{activeFilters.operator_name || "All"}</td>
+                    <td>{activeFilters.machine_id || "All"}</td>
+                    <td>{activeFilters.line_number || "All"}</td>
+                    <td>{formatHoursMinutes(summaryData.totalHours)}</td>
+                    <td>{formatHoursMinutes(summaryData.sewingHours)}</td>
+                    <td>{formatHoursMinutes(summaryData.idleHours)}</td>
+                    <td>{formatHoursMinutes(summaryData.meetingHours)}</td>
+                    <td>{formatHoursMinutes(summaryData.noFeedingHours)}</td>
+                    <td>{formatHoursMinutes(summaryData.maintenanceHours)}</td>
+                    <td>{formatHoursMinutes(summaryData.reworkHours)}</td>
+                    <td>{formatHoursMinutes(summaryData.needleBreakHours)}</td>
+                    <td>{Number(summaryData.productiveTimePercent || 0).toFixed(2)}%</td>
+                    <td>{Number(summaryData.nptPercent || 0).toFixed(2)}%</td>
+                    <td>{Number(summaryData.sewingSpeed || 0).toFixed(2)}</td>
+                    <td>{Number(summaryData.stitchCount || 0).toFixed(2)}</td>
+                    <td>{Number(summaryData.needleRuntime || 0).toFixed(2)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+        
+            {/* --- BEGIN: Per-ID Single Line Summaries --- */}
+            <div className="per-id-summary-section" style={{ overflowX: 'auto', maxWidth: '100%', marginBottom: '32px', marginTop: '32px' }}>
+              {summaryFilter === "machine" && (
+                <>
+                  <h5 style={{ marginBottom: '20px' }}>Machine ID Summary</h5>
+                  <div style={{ overflowX: 'auto', marginBottom: '24px' }}>
+                    <table className="summary-table">
+                      <thead>
+                        <tr>
+                          <th>Machine ID</th>
+                          <th>Total Hours</th>
+                          <th>Sewing</th>
+                          <th>Idle</th>
+                          <th>Meeting</th>
+                          <th>No Feeding</th>
+                          <th>Maintenance</th>
+                          <th>Rework</th>
+                          <th>Needle Break</th>
+                          <th>Productive %</th>
+                          <th>Non-Productive %</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...new Set(filteredData.filter(d => !d.isSummary).map(d => d.MACHINE_ID))].map(machineId => {
+                          const machineRows = filteredData.filter(d => d.MACHINE_ID === machineId && !d.isSummary);
+                          const totalHours = 10;
+                          const sewing = machineRows.filter(d => d.MODE === 1).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
+                          const idle = machineRows.filter(d => d.MODE === 2).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
+                          const meeting = machineRows.filter(d => d.MODE === 3).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
+                          const noFeeding = machineRows.filter(d => d.MODE === 4).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
+                          const maintenance = machineRows.filter(d => d.MODE === 5).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
+                          const rework = machineRows.filter(d => d.MODE === 6).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
+                          const needleBreak = machineRows.filter(d => d.MODE === 7).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
+                          const productivePercent = ((sewing / totalHours) * 100).toFixed(2);
+                          const nonProductivePercent = (((idle + meeting + noFeeding + maintenance + rework + needleBreak) / totalHours) * 100).toFixed(2);
+                          return (
+                            <tr key={machineId}>
+                              <td>{machineId}</td>
+                              <td>{formatHoursMinutes(totalHours)}</td>
+                              <td>{formatHoursMinutes(sewing)}</td>
+                              <td>{formatHoursMinutes(idle)}</td>
+                              <td>{formatHoursMinutes(meeting)}</td>
+                              <td>{formatHoursMinutes(noFeeding)}</td>
+                              <td>{formatHoursMinutes(maintenance)}</td>
+                              <td>{formatHoursMinutes(rework)}</td>
+                              <td>{formatHoursMinutes(needleBreak)}</td>
+                              <td>{productivePercent}%</td>
+                              <td>{nonProductivePercent}%</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+              {summaryFilter === "operator" && (
+                <>
+                  <h5 style={{ marginBottom: '20px' }}>Operator ID Summary</h5>
+                  <div style={{ overflowX: 'auto', marginBottom: '24px' }}>
+                    <table className="summary-table">
+                      <thead>
+                        <tr>
+                          <th>Operator ID</th>
+                          <th>Operator Name</th>
+                          <th>Total Hours</th>
+                          <th>Sewing</th>
+                          <th>Idle</th>
+                          <th>Meeting</th>
+                          <th>No Feeding</th>
+                          <th>Maintenance</th>
+                          <th>Rework</th>
+                          <th>Needle Break</th>
+                          <th>Productive %</th>
+                          <th>Non-Productive %</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...new Set(filteredData.filter(d => !d.isSummary).map(d => d.OPERATOR_ID))].map(operatorId => {
+                          const operatorRows = filteredData.filter(d => d.OPERATOR_ID === operatorId && !d.isSummary);
+                          const operatorName = operatorRows[0]?.operator_name || '-';
+                          const totalHours = 10;
+                          const sewing = operatorRows.filter(d => d.MODE === 1).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
+                          const idle = operatorRows.filter(d => d.MODE === 2).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
+                          const meeting = operatorRows.filter(d => d.MODE === 3).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
+                          const noFeeding = operatorRows.filter(d => d.MODE === 4).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
+                          const maintenance = operatorRows.filter(d => d.MODE === 5).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
+                          const rework = operatorRows.filter(d => d.MODE === 6).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
+                          const needleBreak = operatorRows.filter(d => d.MODE === 7).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
+                          const productivePercent = ((sewing / totalHours) * 100).toFixed(2);
+                          const nonProductivePercent = (((idle + meeting + noFeeding + maintenance + rework + needleBreak) / totalHours) * 100).toFixed(2);
+                          return (
+                            <tr key={operatorId}>
+                              <td>{operatorId}</td>
+                              <td>{operatorName}</td>
+                              <td>{formatHoursMinutes(totalHours)}</td>
+                              <td>{formatHoursMinutes(sewing)}</td>
+                              <td>{formatHoursMinutes(idle)}</td>
+                              <td>{formatHoursMinutes(meeting)}</td>
+                              <td>{formatHoursMinutes(noFeeding)}</td>
+                              <td>{formatHoursMinutes(maintenance)}</td>
+                              <td>{formatHoursMinutes(rework)}</td>
+                              <td>{formatHoursMinutes(needleBreak)}</td>
+                              <td>{productivePercent}%</td>
+                              <td>{nonProductivePercent}%</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+              {summaryFilter === "line" && (
+                <>
+                  <h5 style={{ marginBottom: '20px' }}>Line Number Summary</h5>
+                  <div style={{ overflowX: 'auto', marginBottom: '24px' }}>
+                    <table className="summary-table">
+                      <thead>
+                        <tr>
+                          <th>Line Number</th>
+                          <th>Total Hours</th>
+                          <th>Sewing</th>
+                          <th>Idle</th>
+                          <th>Meeting</th>
+                          <th>No Feeding</th>
+                          <th>Maintenance</th>
+                          <th>Rework</th>
+                          <th>Needle Break</th>
+                          <th>Productive %</th>
+                          <th>Non-Productive %</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...new Set(filteredData.filter(d => !d.isSummary).map(d => d.LINE_NUMB))].map(lineNum => {
+                          const lineRows = filteredData.filter(d => d.LINE_NUMB === lineNum && !d.isSummary);
+                          const totalHours = 10;
+                          const sewing = lineRows.filter(d => d.MODE === 1).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
+                          const idle = lineRows.filter(d => d.MODE === 2).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
+                          const meeting = lineRows.filter(d => d.MODE === 3).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
+                          const noFeeding = lineRows.filter(d => d.MODE === 4).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
+                          const maintenance = lineRows.filter(d => d.MODE === 5).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
+                          const rework = lineRows.filter(d => d.MODE === 6).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
+                          const needleBreak = lineRows.filter(d => d.MODE === 7).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
+                          const productivePercent = ((sewing / totalHours) * 100).toFixed(2);
+                          const nonProductivePercent = (((idle + meeting + noFeeding + maintenance + rework + needleBreak) / totalHours) * 100).toFixed(2);
+                          return (
+                            <tr key={lineNum}>
+                              <td>{lineNum}</td>
+                              <td>{formatHoursMinutes(totalHours)}</td>
+                              <td>{formatHoursMinutes(sewing)}</td>
+                              <td>{formatHoursMinutes(idle)}</td>
+                              <td>{formatHoursMinutes(meeting)}</td>
+                              <td>{formatHoursMinutes(noFeeding)}</td>
+                              <td>{formatHoursMinutes(maintenance)}</td>
+                              <td>{formatHoursMinutes(rework)}</td>
+                              <td>{formatHoursMinutes(needleBreak)}</td>
+                              <td>{productivePercent}%</td>
+                              <td>{nonProductivePercent}%</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+            </div>
+            {/* --- END: Per-ID Single Line Summaries --- */}
+
+            <div className="summary-content" style={{ marginTop: '32px' }}>
               <div className="summary-chart">
                 <Doughnut 
                   data={{
@@ -798,9 +1113,7 @@ const ConsolidatedReports = () => {
                   }}
                 />
               </div>
-              <div className="total-hours" style={{ textAlign: 'center', marginTop: '10px', marginBottom: '15px' }}>
-                <strong>Total Hours: {(summaryData.totalHours || 0).toFixed(2)} Hrs</strong>
-              </div>
+             
               <div className="hour-breakdown">
                 <div className="hour-box">
                   <span className="dot production"></span>
@@ -832,218 +1145,6 @@ const ConsolidatedReports = () => {
                 </div>
               </div>
             </div>
-            
-            <div className="summary-table-wrapper">
-              <table className="summary-table">
-                <thead>
-                  <tr>
-                    <th>Date Range</th>
-                    <th>Operator ID</th>
-                    <th>Operator Name</th>
-                    <th>Machine ID</th>
-                    <th>Line Number</th>
-                    <th>Total Hours</th>
-                    <th>Sewing Hours</th>
-                    <th>Idle Hours</th>
-                    <th>Meeting Hours</th>
-                    <th>No Feeding Hours</th>
-                    <th>Maintenance Hours</th>
-                    <th>Rework Hours</th>
-                    <th>Needle Break Hours</th>
-                    <th>Productive Time in %</th>
-                    <th>NPT in %</th>
-                    <th>Sewing Speed</th>
-                    <th>Stitch Count</th>
-                    <th>Needle Runtime</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>{activeFilters.from_date || "Start"} to {activeFilters.to_date || "End"}</td>
-                    <td>{activeFilters.OPERATOR_ID || "All"}</td>
-                    <td>{activeFilters.operator_name || "All"}</td>
-                    <td>{activeFilters.machine_id || "All"}</td>
-                    <td>{activeFilters.line_number || "All"}</td>
-                    <td>{formatHoursMinutes(summaryData.totalHours)}</td>
-                    <td>{formatHoursMinutes(summaryData.sewingHours)}</td>
-                    <td>{formatHoursMinutes(summaryData.idleHours)}</td>
-                    <td>{formatHoursMinutes(summaryData.meetingHours)}</td>
-                    <td>{formatHoursMinutes(summaryData.noFeedingHours)}</td>
-                    <td>{formatHoursMinutes(summaryData.maintenanceHours)}</td>
-                    <td>{formatHoursMinutes(summaryData.reworkHours)}</td>
-                    <td>{formatHoursMinutes(summaryData.needleBreakHours)}</td>
-                    <td>{Number(summaryData.productiveTimePercent || 0).toFixed(2)}%</td>
-                    <td>{Number(summaryData.nptPercent || 0).toFixed(2)}%</td>
-                    <td>{Number(summaryData.sewingSpeed || 0).toFixed(2)}</td>
-                    <td>{Number(summaryData.stitchCount || 0).toFixed(2)}</td>
-                    <td>{Number(summaryData.needleRuntime || 0).toFixed(2)}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            {/* --- BEGIN: Per-ID Single Line Summaries --- */}
-            <div className="per-id-summary-section" style={{ overflowX: 'auto', maxWidth: '100%' }}>
-              {/* Machine ID Summary */}
-              <h5>Machine ID Summary</h5>
-              <div style={{ overflowX: 'auto' }}>
-                <table className="summary-table">
-                  <thead>
-                    <tr>
-                      <th>Machine ID</th>
-                      <th>Total Hours</th>
-                      <th>Sewing</th>
-                      <th>Idle</th>
-                      <th>Meeting</th>
-                      <th>No Feeding</th>
-                      <th>Maintenance</th>
-                      <th>Rework</th>
-                      <th>Needle Break</th>
-                      <th>Productive %</th>
-                      <th>Non-Productive %</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[...new Set(filteredData.filter(d => !d.isSummary).map(d => d.MACHINE_ID))].map(machineId => {
-                      const machineRows = filteredData.filter(d => d.MACHINE_ID === machineId && !d.isSummary);
-                      const totalHours = 10;
-                      const sewing = machineRows.filter(d => d.MODE === 1).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
-                      const idle = machineRows.filter(d => d.MODE === 2).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
-                      const meeting = machineRows.filter(d => d.MODE === 3).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
-                      const noFeeding = machineRows.filter(d => d.MODE === 4).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
-                      const maintenance = machineRows.filter(d => d.MODE === 5).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
-                      const rework = machineRows.filter(d => d.MODE === 6).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
-                      const needleBreak = machineRows.filter(d => d.MODE === 7).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
-                      const productivePercent = ((sewing / totalHours) * 100).toFixed(2);
-                      const nonProductivePercent = (((idle + meeting + noFeeding + maintenance + rework + needleBreak) / totalHours) * 100).toFixed(2);
-                      return (
-                        <tr key={machineId}>
-                          <td>{machineId}</td>
-                          <td>{formatHoursMinutes(totalHours)}</td>
-                          <td>{formatHoursMinutes(sewing)}</td>
-                          <td>{formatHoursMinutes(idle)}</td>
-                          <td>{formatHoursMinutes(meeting)}</td>
-                          <td>{formatHoursMinutes(noFeeding)}</td>
-                          <td>{formatHoursMinutes(maintenance)}</td>
-                          <td>{formatHoursMinutes(rework)}</td>
-                          <td>{formatHoursMinutes(needleBreak)}</td>
-                          <td>{productivePercent}%</td>
-                          <td>{nonProductivePercent}%</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Operator ID Summary */}
-              <h5 style={{marginTop: '20px'}}>Operator ID Summary</h5>
-              <div style={{ overflowX: 'auto' }}>
-                <table className="summary-table">
-                  <thead>
-                    <tr>
-                      <th>Operator ID</th>
-                      <th>Operator Name</th>
-                      <th>Total Hours</th>
-                      <th>Sewing</th>
-                      <th>Idle</th>
-                      <th>Meeting</th>
-                      <th>No Feeding</th>
-                      <th>Maintenance</th>
-                      <th>Rework</th>
-                      <th>Needle Break</th>
-                      <th>Productive %</th>
-                      <th>Non-Productive %</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[...new Set(filteredData.filter(d => !d.isSummary).map(d => d.OPERATOR_ID))].map(operatorId => {
-                      const operatorRows = filteredData.filter(d => d.OPERATOR_ID === operatorId && !d.isSummary);
-                      const operatorName = operatorRows[0]?.operator_name || '-';
-                      const totalHours = 10;
-                      const sewing = operatorRows.filter(d => d.MODE === 1).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
-                      const idle = operatorRows.filter(d => d.MODE === 2).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
-                      const meeting = operatorRows.filter(d => d.MODE === 3).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
-                      const noFeeding = operatorRows.filter(d => d.MODE === 4).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
-                      const maintenance = operatorRows.filter(d => d.MODE === 5).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
-                      const rework = operatorRows.filter(d => d.MODE === 6).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
-                      const needleBreak = operatorRows.filter(d => d.MODE === 7).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
-                      const productivePercent = ((sewing / totalHours) * 100).toFixed(2);
-                      const nonProductivePercent = (((idle + meeting + noFeeding + maintenance + rework + needleBreak) / totalHours) * 100).toFixed(2);
-                      return (
-                        <tr key={operatorId}>
-                          <td>{operatorId}</td>
-                          <td>{operatorName}</td>
-                          <td>{formatHoursMinutes(totalHours)}</td>
-                          <td>{formatHoursMinutes(sewing)}</td>
-                          <td>{formatHoursMinutes(idle)}</td>
-                          <td>{formatHoursMinutes(meeting)}</td>
-                          <td>{formatHoursMinutes(noFeeding)}</td>
-                          <td>{formatHoursMinutes(maintenance)}</td>
-                          <td>{formatHoursMinutes(rework)}</td>
-                          <td>{formatHoursMinutes(needleBreak)}</td>
-                          <td>{productivePercent}%</td>
-                          <td>{nonProductivePercent}%</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Line Number Summary */}
-              <h5 style={{marginTop: '20px'}}>Line Number Summary</h5>
-              <div style={{ overflowX: 'auto' }}>
-                <table className="summary-table">
-                  <thead>
-                    <tr>
-                      <th>Line Number</th>
-                      <th>Total Hours</th>
-                      <th>Sewing</th>
-                      <th>Idle</th>
-                      <th>Meeting</th>
-                      <th>No Feeding</th>
-                      <th>Maintenance</th>
-                      <th>Rework</th>
-                      <th>Needle Break</th>
-                      <th>Productive %</th>
-                      <th>Non-Productive %</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[...new Set(filteredData.filter(d => !d.isSummary).map(d => d.LINE_NUMB))].map(lineNum => {
-                      const lineRows = filteredData.filter(d => d.LINE_NUMB === lineNum && !d.isSummary);
-                      const totalHours = 10;
-                      const sewing = lineRows.filter(d => d.MODE === 1).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
-                      const idle = lineRows.filter(d => d.MODE === 2).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
-                      const meeting = lineRows.filter(d => d.MODE === 3).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
-                      const noFeeding = lineRows.filter(d => d.MODE === 4).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
-                      const maintenance = lineRows.filter(d => d.MODE === 5).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
-                      const rework = lineRows.filter(d => d.MODE === 6).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
-                      const needleBreak = lineRows.filter(d => d.MODE === 7).reduce((sum, d) => sum + (d.duration_hours || 0), 0);
-                      const productivePercent = ((sewing / totalHours) * 100).toFixed(2);
-                      const nonProductivePercent = (((idle + meeting + noFeeding + maintenance + rework + needleBreak) / totalHours) * 100).toFixed(2);
-                      return (
-                        <tr key={lineNum}>
-                          <td>{lineNum}</td>
-                          <td>{formatHoursMinutes(totalHours)}</td>
-                          <td>{formatHoursMinutes(sewing)}</td>
-                          <td>{formatHoursMinutes(idle)}</td>
-                          <td>{formatHoursMinutes(meeting)}</td>
-                          <td>{formatHoursMinutes(noFeeding)}</td>
-                          <td>{formatHoursMinutes(maintenance)}</td>
-                          <td>{formatHoursMinutes(rework)}</td>
-                          <td>{formatHoursMinutes(needleBreak)}</td>
-                          <td>{productivePercent}%</td>
-                          <td>{nonProductivePercent}%</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-            {/* --- END: Per-ID Single Line Summaries --- */}
           </div>
         )}
 
